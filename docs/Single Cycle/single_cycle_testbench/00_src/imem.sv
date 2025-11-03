@@ -10,10 +10,19 @@ module imem (
     logic [ADDR_WIDTH-1:0] byte_addr;
 
     initial begin
+        integer fd;
 `ifdef DEMO_MEM
         $readmemh("../02_test/demo.mem", mem);
 `else
-        $readmemh("../02_test/isa.mem", mem);
+        // Prefer server-required file isa.mem; if missing (local), fallback to isa_1b.hex
+        fd = $fopen("../02_test/isa.mem", "r");
+        if (fd) begin
+            $fclose(fd);
+            $readmemh("../02_test/isa.mem", mem);
+        end else begin
+            $display("[IMEM] ../02_test/isa.mem not found. Falling back to ../02_test/isa_1b.hex");
+            $readmemh("../02_test/isa_1b.hex", mem);
+        end
 `endif
     end
 
