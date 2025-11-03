@@ -66,7 +66,7 @@ always @(negedge i_clk) begin
       last_ledr <= o_io_ledr;
       // in ký tự từ byte thấp nếu là ASCII hiển thị được
       if (o_io_ledr[7:0] != 8'h00) begin
-        $write("%s", o_io_ledr[7:0]);
+        $write("%c", o_io_ledr[7:0]);
       end
     end
 
