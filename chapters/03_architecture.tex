@@ -1,0 +1,232 @@
+\chapter{Processor Architecture}
+
+\section{Overview}
+
+The single-cycle RISC-V processor follows a traditional Harvard architecture with separate instruction and data memories. The complete datapath includes all major components: Program Counter, Instruction Memory, Register File, ALU, Data Memory, and Control Unit.
+
+\section{Datapath Components}
+
+\subsection{Program Counter (PC)}
+
+The Program Counter tracks the current instruction address and updates based on instruction type:
+
+\begin{itemize}
+    \item \textbf{Sequential}: PC = PC + 4 (default for non-branch/jump instructions)
+    \item \textbf{Branch}: PC = PC + immediate (if branch condition is true)
+    \item \textbf{Jump}: PC = PC + immediate (JAL) or rs1 + immediate (JALR)
+    \item \textbf{Reset}: PC = 0x0000\_0000
+\end{itemize}
+
+The PC register updates on the rising edge of the clock when reset is not active.
+
+\subsection{Instruction Memory (IMEM)}
+
+The instruction memory is implemented as a 16KB read-only array:
+
+\begin{itemize}
+    \item \textbf{Implementation}: Logic element array (16,384 bytes)
+    \item \textbf{Addressing}: Byte-addressable, but fetches 32-bit words
+    \item \textbf{Access}: Combinational read (asynchronous)
+    \item \textbf{Initialization}: Pre-loaded from \texttt{isa.mem} file
+\end{itemize}
+
+\subsection{Instruction Decode}
+
+The instruction is decoded into the following fields:
+
+\begin{itemize}
+    \item \textbf{opcode}: bits [6:0] - Instruction type identifier
+    \item \textbf{rd}: bits [11:7] - Destination register
+    \item \textbf{funct3}: bits [14:12] - Function code for opcode variants
+    \item \textbf{rs1}: bits [19:15] - Source register 1
+    \item \textbf{rs2}: bits [24:20] - Source register 2
+    \item \textbf{funct7}: bits [31:25] - Additional function code (for R-type)
+\end{itemize}
+
+\subsection{Immediate Generation}
+
+The immediate generator extracts and sign-extends immediate values based on instruction type:
+
+\begin{itemize}
+    \item \textbf{I-type}: Sign-extend bits [31:20]
+    \item \textbf{S-type}: Sign-extend bits [31:25, 11:7]
+    \item \textbf{B-type}: Sign-extend bits [31, 7, 30:25, 11:8], LSB = 0
+    \item \textbf{U-type}: bits [31:12] << 12 (LUI, AUIPC)
+    \item \textbf{J-type}: Sign-extend bits [31, 19:12, 20, 30:21], LSB = 0
+\end{itemize}
+
+\subsection{Register File}
+
+The register file provides two read ports and one write port:
+
+\begin{itemize}
+    \item \textbf{Size}: 32 registers, each 32 bits wide
+    \item \textbf{Read}: Asynchronous (combinational) - data available immediately
+    \item \textbf{Write}: Synchronous (on clock edge) - only when \texttt{reg\_write} is enabled
+    \item \textbf{Register x0}: Hardwired to zero (always reads 0, writes ignored)
+    \item \textbf{Read Ports}: rs1 and rs2 addresses from instruction fields
+    \item \textbf{Write Port}: rd address, data from writeback multiplexer
+\end{itemize}
+
+\subsection{Arithmetic Logic Unit (ALU)}
+
+The ALU performs arithmetic and logical operations. Table~\ref{tab:alu_ops} shows all supported operations.
+
+\begin{table}[h]
+\centering
+\caption{ALU Operations}
+\label{tab:alu_ops}
+\begin{tabular}{ll}
+\toprule
+\textbf{ALU Op} & \textbf{Operation} \\
+\midrule
+0000 & ADD (rs1 + rs2/immediate) \\
+0001 & SUB (rs1 - rs2) \\
+0010 & AND (rs1 \& rs2/immediate) \\
+0011 & OR (rs1 | rs2/immediate) \\
+0100 & XOR (rs1 \textasciicircum rs2/immediate) \\
+0101 & SLL (rs1 << shift\_amount) \\
+0110 & SRL (rs1 >> shift\_amount) \\
+0111 & SRA (rs1 >>> shift\_amount, arithmetic) \\
+1000 & SLT (rs1 < rs2/immediate, signed) \\
+1001 & SLTU (rs1 < rs2/immediate, unsigned) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Branch Comparison Unit}
+
+Branch conditions are evaluated in the datapath:
+
+\begin{itemize}
+    \item \textbf{BEQ}: rs1 == rs2
+    \item \textbf{BNE}: rs1 != rs2
+    \item \textbf{BLT}: rs1 < rs2 (signed)
+    \item \textbf{BGE}: rs1 >= rs2 (signed)
+    \item \textbf{BLTU}: rs1 < rs2 (unsigned)
+    \item \textbf{BGEU}: rs1 >= rs2 (unsigned)
+\end{itemize}
+
+The branch target is calculated as PC + immediate (B-type immediate has LSB=0).
+
+\subsection{Data Memory (DMEM)}
+
+The data memory supports byte, half-word, and word accesses:
+
+\begin{itemize}
+    \item \textbf{Read Operations}:
+    \begin{itemize}
+        \item LB/LBU: Read byte, sign-extend (LB) or zero-extend (LBU)
+        \item LH/LHU: Read half-word, sign-extend (LH) or zero-extend (LHU)
+        \item LW: Read word
+    \end{itemize}
+    \item \textbf{Write Operations}:
+    \begin{itemize}
+        \item SB: Write byte (lowest byte of rs2)
+        \item SH: Write half-word (lowest half-word of rs2)
+        \item SW: Write word (full rs2)
+    \end{itemize}
+    \item \textbf{Byte Ordering}: Little-endian (LSB at lower address)
+    \item \textbf{Misaligned Access}: Addresses truncated to appropriate boundary
+\end{itemize}
+
+\subsection{Load-Store Unit (LSU)}
+
+The LSU manages data memory and I/O access:
+
+\begin{itemize}
+    \item \textbf{Address Decode}: Determines if address is in DMEM region or I/O region
+    \item \textbf{Memory Access}: Routes read/write to DMEM or I/O registers
+    \item \textbf{I/O Handling}: 
+    \begin{itemize}
+        \item Reads from switches, returns LED/LCD/HEX register values
+        \item Writes to LED/LCD/HEX registers based on address
+    \end{itemize}
+\end{itemize}
+
+\subsection{Writeback Mux}
+
+The writeback multiplexer selects data for register write:
+
+\begin{itemize}
+    \item \textbf{00}: ALU result (for arithmetic/logical operations)
+    \item \textbf{01}: Memory/I/O data (for load operations)
+    \item \textbf{10}: PC + 4 (for JAL/JALR)
+\end{itemize}
+
+\section{Control Unit}
+
+The control unit decodes instructions and generates control signals. The control flow varies based on instruction type, with different control signal combinations for R-type, I-type, S-type, B-type, U-type, and J-type instructions.
+
+\subsection{Control Signal Generation}
+
+For each instruction type, the control unit sets:
+
+\begin{itemize}
+    \item Register write enable (\texttt{reg\_write})
+    \item Memory read/write enables (\texttt{mem\_read}, \texttt{mem\_write})
+    \item ALU source selectors (\texttt{alu\_src\_a}, \texttt{alu\_src\_b})
+    \item ALU operation code (\texttt{alu\_op})
+    \item Memory-to-register selector (\texttt{mem\_to\_reg})
+    \item Branch and jump flags (\texttt{branch}, \texttt{jump})
+    \item Memory access size (\texttt{mem\_size})
+\end{itemize}
+
+\subsection{Instruction Types}
+
+\subsubsection{R-type Instructions}
+\begin{itemize}
+    \item Source operands: rs1 and rs2 from register file
+    \item ALU operation determined by funct3 and funct7
+    \item Result written to register rd
+\end{itemize}
+
+\subsubsection{I-type Instructions}
+\begin{itemize}
+    \item Source operand: rs1 from register file
+    \item Second operand: immediate value
+    \item ALU operation determined by funct3 (and funct7 for shifts)
+    \item Result written to register rd
+\end{itemize}
+
+\subsubsection{S-type Instructions}
+\begin{itemize}
+    \item Source operands: rs1 (base address) and rs2 (data to store)
+    \item ALU calculates effective address: rs1 + immediate
+    \item Data written to memory at calculated address
+\end{itemize}
+
+\subsubsection{B-type Instructions}
+\begin{itemize}
+    \item Source operands: rs1 and rs2 for comparison
+    \item Branch target: PC + immediate
+    \item PC update: branch target if condition true, else PC + 4
+\end{itemize}
+
+\subsubsection{U-type Instructions}
+\begin{itemize}
+    \item \textbf{LUI}: Load immediate upper 20 bits, lower 12 bits = 0
+    \item \textbf{AUIPC}: Add PC to immediate upper 20 bits
+\end{itemize}
+
+\subsubsection{J-type Instructions}
+\begin{itemize}
+    \item \textbf{JAL}: Jump to PC + immediate, save PC + 4 to rd
+    \item \textbf{JALR}: Jump to rs1 + immediate, save PC + 4 to rd
+\end{itemize}
+
+\section{Timing}
+
+In a single-cycle processor, all operations complete within one clock cycle:
+
+\begin{enumerate}
+    \item \textbf{Fetch}: Instruction read from IMEM
+    \item \textbf{Decode}: Instruction decoded, registers read, immediate generated
+    \item \textbf{Execute}: ALU performs operation or address calculation
+    \item \textbf{Memory}: Data memory/I/O accessed (if needed)
+    \item \textbf{Writeback}: Result written to register file (if needed)
+    \item \textbf{PC Update}: Next PC calculated and registered on clock edge
+\end{enumerate}
+
+All combinational operations (ALU, memory read, register read) complete within the clock period, and register/memory writes occur on the clock edge.
+

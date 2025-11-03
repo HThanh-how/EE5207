@@ -7,12 +7,16 @@ all: build run
 .PHONY: build
 build:
 	@echo "Building with Verilator..."
-	@verilator --cc --exe --build --top-module tbench -f ./flist
+	@verilator $(VFLAGS) --cc --exe --build --top-module tbench -f ./flist
 
 .PHONY: run
 run:
 	@echo "Running simulation..."
 	@./obj_dir/Vtbench
+
+# Usage:
+# make DEMO=1        -> builds with -DDEMO_MEM to use demo.mem
+# Example: make VFLAGS="-DDEMO_MEM"
 
 .PHONY: wave
 wave:

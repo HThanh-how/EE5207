@@ -7,12 +7,12 @@ all: xrun
 .PHONY: xrun
 xrun:
 	@echo "Running simulation with Xcelium..."
-	@xrun -64bit -access +rwc -f ./flist
+	@xrun -64bit -access +rwc $(XRUN_OPTS) -f ./flist
 
 .PHONY: gui
 gui:
 	@echo "Opening SimVision GUI..."
-	@xrun -gui -access +rwc -f ./flist
+	@xrun -gui -access +rwc $(XRUN_OPTS) -f ./flist
 
 .PHONY: simvision
 simvision:

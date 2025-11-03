@@ -1,0 +1,292 @@
+\chapter{Implementation}
+
+\section{Module Structure}
+
+The processor is implemented as a modular SystemVerilog design with the following modules:
+
+\begin{itemize}
+    \item \texttt{single\_cycle.sv}: Top-level module integrating all components
+    \item \texttt{register\_file.sv}: 32x32-bit register file
+    \item \texttt{alu.sv}: Arithmetic Logic Unit
+    \item \texttt{control\_unit.sv}: Instruction decoder and control signal generator
+    \item \texttt{imem.sv}: Instruction memory
+    \item \texttt{dmem.sv}: Data memory
+\end{itemize}
+
+\section{Register File Implementation}
+
+The register file implements 32 registers with asynchronous read and synchronous write:
+
+\begin{lstlisting}[language=Verilog, caption=Register File Implementation]
+module register_file (
+    input  logic        clk,
+    input  logic        we,
+    input  logic [4:0]  addr_rs1,
+    input  logic [4:0]  addr_rs2,
+    input  logic [4:0]  addr_rd,
+    input  logic [31:0] wdata,
+    output logic [31:0] rdata_rs1,
+    output logic [31:0] rdata_rs2
+);
+
+    logic [31:0] registers [0:31];
+
+    // Register x0 is always zero
+    assign rdata_rs1 = (addr_rs1 == 5'b0) ? 32'b0 : registers[addr_rs1];
+    assign rdata_rs2 = (addr_rs2 == 5'b0) ? 32'b0 : registers[addr_rs2];
+
+    always_ff @(posedge clk) begin
+        if (we && addr_rd != 5'b0) begin
+            registers[addr_rd] <= wdata;
+        end
+    end
+
+endmodule
+\end{lstlisting}
+
+\subsection{Key Features}
+
+\begin{itemize}
+    \item Register x0 hardwired to zero using combinational logic
+    \item Writes to x0 are ignored (check \texttt{addr\_rd != 5'b0})
+    \item Asynchronous read (data available immediately)
+    \item Synchronous write (on clock edge)
+\end{itemize}
+
+\section{ALU Implementation}
+
+The ALU supports 10 operations as specified in the requirements:
+
+\begin{lstlisting}[language=Verilog, caption=ALU Operations]
+always_comb begin
+    case (alu_op)
+        4'b0000: alu_out = op_a + op_b;           // ADD
+        4'b0001: alu_out = op_a - op_b;           // SUB
+        4'b0010: alu_out = op_a & op_b;           // AND
+        4'b0011: alu_out = op_a | op_b;           // OR
+        4'b0100: alu_out = op_a ^ op_b;           // XOR
+        4'b0101: alu_out = op_a << op_b[4:0];     // SLL
+        4'b0110: alu_out = op_a >> op_b[4:0];     // SRL
+        4'b0111: alu_out = $signed(op_a) >>> op_b[4:0]; // SRA
+        4'b1000: alu_out = ($signed(op_a) < $signed(op_b)) ? 32'b1 : 32'b0; // SLT
+        4'b1001: alu_out = (op_a < op_b) ? 32'b1 : 32'b0; // SLTU
+        default: alu_out = 32'b0;
+    endcase
+end
+\end{lstlisting}
+
+\subsection{Design Considerations}
+
+\begin{itemize}
+    \item Shift operations use lower 5 bits of op\_b for shift amount
+    \item Arithmetic right shift (\texttt{SRA}) uses \texttt{\$signed()} for sign extension
+    \item Comparison operations return 1 if condition true, 0 otherwise
+    \item All operations are synthesizable
+\end{itemize}
+
+\section{Control Unit Implementation}
+
+The control unit decodes instructions and generates control signals. The implementation uses a case statement on the opcode field:
+
+\begin{lstlisting}[language=Verilog, caption=Control Unit Structure]
+always_comb begin
+    // Default values
+    reg_write = 1'b0;
+    mem_write = 1'b0;
+    mem_read  = 1'b0;
+    // ... other defaults ...
+    
+    case (opcode)
+        7'b0110011: begin // R-type
+            reg_write = 1'b1;
+            // Set alu_op based on funct3 and funct7
+        end
+        7'b0010011: begin // I-type (arithmetic/logical)
+            reg_write = 1'b1;
+            alu_src_b = 2'b01; // Use immediate
+            // Set alu_op based on funct3
+        end
+        7'b0000011: begin // Load instructions
+            reg_write = 1'b1;
+            mem_read  = 1'b1;
+            mem_to_reg = 2'b01;
+            // Set mem_size based on funct3
+        end
+        // ... other instruction types ...
+    endcase
+end
+\end{lstlisting}
+
+\subsection{Special Cases}
+
+\begin{itemize}
+    \item \textbf{LUI}: \texttt{alu\_src\_a = 2'b11} (immediate upper), \texttt{alu\_src\_b = 2'b11} (zero), \texttt{alu\_op = ADD}
+    \item \textbf{AUIPC}: \texttt{alu\_src\_a = 2'b01} (PC), \texttt{alu\_src\_b = 2'b01} (immediate), \texttt{alu\_op = ADD}
+    \item \textbf{JALR}: Similar to JAL but uses rs1 + immediate instead of PC + immediate
+    \item \textbf{Shift instructions}: Use immediate[4:0] for shift amount (not full 32-bit immediate)
+\end{itemize}
+
+\section{Instruction Memory Implementation}
+
+The instruction memory is implemented as a byte-addressable array:
+
+\begin{lstlisting}[language=Verilog, caption=Instruction Memory]
+module imem (
+    input  logic [31:0]  addr,
+    output logic [31:0]  rdata
+);
+
+    parameter MEM_SIZE = 16384;
+    parameter ADDR_WIDTH = $clog2(MEM_SIZE);
+
+    logic [7:0] mem [0:MEM_SIZE-1];
+    logic [ADDR_WIDTH-1:0] byte_addr;
+
+    initial begin
+        $readmemh("../02_test/isa.mem", mem);
+    end
+
+    assign byte_addr = addr[ADDR_WIDTH-1:0];
+    assign rdata = {mem[byte_addr+3], mem[byte_addr+2], 
+                     mem[byte_addr+1], mem[byte_addr]};
+
+endmodule
+\end{lstlisting}
+
+\subsection{Byte Ordering}
+
+Instructions are stored in little-endian format (LSB at lower address), matching RISC-V specification.
+
+\section{Data Memory Implementation}
+
+The data memory supports byte, half-word, and word accesses with proper sign extension:
+
+\begin{lstlisting}[language=Verilog, caption=Data Memory Write]
+always_ff @(posedge clk) begin
+    if (we && word_addr < MEM_SIZE) begin
+        case (mem_size)
+            3'b000: mem[word_addr] <= wdata[7:0];        // SB
+            3'b001: begin                                // SH
+                mem[word_addr]   <= wdata[7:0];
+                mem[word_addr+1] <= wdata[15:8];
+            end
+            3'b010: begin                                // SW
+                mem[word_addr]   <= wdata[7:0];
+                mem[word_addr+1] <= wdata[15:8];
+                mem[word_addr+2] <= wdata[23:16];
+                mem[word_addr+3] <= wdata[31:24];
+            end
+        endcase
+    end
+end
+\end{lstlisting}
+
+\subsection{Memory Read with Sign Extension}
+
+\begin{lstlisting}[language=Verilog, caption=Data Memory Read]
+always_comb begin
+    case (mem_size)
+        3'b000: rdata = {{24{mem[word_addr][7]}}, mem[word_addr]}; // LB
+        3'b001: rdata = {{16{mem[word_addr+1][7]}}, 
+                         mem[word_addr+1], mem[word_addr]}; // LH
+        3'b010: rdata = {mem[word_addr+3], mem[word_addr+2],
+                         mem[word_addr+1], mem[word_addr]}; // LW
+        3'b100: rdata = {24'b0, mem[word_addr]}; // LBU
+        3'b101: rdata = {16'b0, mem[word_addr+1], mem[word_addr]}; // LHU
+    endcase
+end
+\end{lstlisting}
+
+\section{Memory-Mapped I/O Implementation}
+
+The I/O system is integrated into the Load-Store Unit:
+
+\subsection{I/O Write Logic}
+
+\begin{lstlisting}[language=Verilog, caption=I/O Write Implementation]
+always_ff @(posedge clk) begin
+    if (~i_reset) begin
+        o_io_ledr <= 32'b0;
+        o_io_ledg <= 32'b0;
+        o_io_lcd  <= 32'b0;
+        // Reset HEX displays
+    end else if (mem_write && dmem_addr >= 32'h1000_0000) begin
+        if (dmem_addr >= 32'h1000_0000 && dmem_addr < 32'h1000_1000) begin
+            o_io_ledr <= dmem_wdata;
+        end else if (dmem_addr >= 32'h1000_1000 && dmem_addr < 32'h1000_2000) begin
+            o_io_ledg <= dmem_wdata;
+        end
+        // ... LCD and HEX handling ...
+    end
+end
+\end{lstlisting}
+
+\subsection{I/O Read Logic}
+
+\begin{lstlisting}[language=Verilog, caption=I/O Read Implementation]
+always_comb begin
+    if (dmem_addr >= 32'h1000_0000) begin
+        if (dmem_addr >= 32'h1001_0000 && dmem_addr < 32'h1001_1000 && mem_read) begin
+            io_data = i_io_sw;
+        end else if (dmem_addr >= 32'h1000_4000 && dmem_addr < 32'h1000_5000 && mem_read) begin
+            io_data = o_io_lcd;
+        end else if (dmem_addr >= 32'h1000_2000 && dmem_addr < 32'h1000_3000 && mem_read) begin
+            io_data = {1'b0, o_io_hex3, 1'b0, o_io_hex2, 
+                       1'b0, o_io_hex1, 1'b0, o_io_hex0};
+        end
+        // ... other I/O regions ...
+    end else begin
+        io_data = dmem_rdata;
+    end
+end
+\end{lstlisting}
+
+\section{Top-Level Module Integration}
+
+The \texttt{single\_cycle} module connects all components:
+
+\begin{itemize}
+    \item Instantiates all sub-modules (IMEM, register file, ALU, control unit, DMEM)
+    \item Implements immediate generation logic
+    \item Implements branch condition evaluation
+    \item Implements PC update logic
+    \item Manages memory-mapped I/O access
+    \item Provides debug outputs (\texttt{o\_pc\_debug}, \texttt{o\_insn\_vld})
+\end{itemize}
+
+\subsection{Key Signal Assignments}
+
+\begin{itemize}
+    \item \texttt{o\_insn\_vld = i\_reset}: Instruction valid when not reset
+    \item \texttt{o\_pc\_debug = pc}: Debug PC output
+    \item PC updates on clock edge: \texttt{pc <= pc\_next}
+    \item Register writes occur on clock edge when \texttt{reg\_write} is enabled
+    \item Memory writes occur on clock edge when \texttt{mem\_write} is enabled
+\end{itemize}
+
+\section{Implementation Challenges and Solutions}
+
+\subsection{Challenge 1: LUI Instruction}
+
+\textbf{Problem}: LUI must load immediate to upper 20 bits, not add to any register value.
+
+\textbf{Solution}: Use \texttt{alu\_src\_a = 2'b11} (immediate upper) and \texttt{alu\_src\_b = 2'b11} (zero), then ADD operation results in just the immediate value.
+
+\subsection{Challenge 2: Memory-Mapped I/O}
+
+\textbf{Problem}: Need to route memory accesses between DMEM and I/O regions.
+
+\textbf{Solution}: Implement address decode logic in LSU to determine access type and route accordingly.
+
+\subsection{Challenge 3: Sign Extension for Loads}
+
+\textbf{Problem}: LB and LH must sign-extend, while LBU and LHU must zero-extend.
+
+\textbf{Solution}: Use different \texttt{mem\_size} codes (3'b000 for LB, 3'b100 for LBU) and handle sign extension in read logic.
+
+\subsection{Challenge 4: Misaligned Address Handling}
+
+\textbf{Problem}: Addresses for word access must be word-aligned (LSB bits = 00).
+
+\textbf{Solution}: Truncate address to word boundary using \texttt{word\_addr = \{addr[ADDR\_WIDTH-1:2], 2'b00\}}.
+

@@ -1,0 +1,181 @@
+\chapter{Appendix}
+
+\section{Complete Module Listings}
+
+This appendix contains complete code listings for all processor modules.
+
+\subsection{Top-Level Module: single\_cycle.sv}
+
+Due to length, the complete code is available in the source directory. Key sections include:
+
+\begin{itemize}
+    \item Module declaration with all I/O ports
+    \item Internal signal declarations
+    \item PC update logic
+    \item Instruction fetch
+    \item Immediate generation
+    \item ALU operand selection
+    \item Branch and jump logic
+    \item Memory-mapped I/O handling
+    \item Module instantiations
+\end{itemize}
+
+\subsection{Register File Module}
+
+The register file implementation is shown in Chapter 4. Key features:
+
+\begin{itemize}
+    \item 32 registers of 32 bits each
+    \item Asynchronous read, synchronous write
+    \item Register x0 hardwired to zero
+\end{itemize}
+
+\subsection{ALU Module}
+
+The ALU supports 10 operations as detailed in Chapter 4:
+
+\begin{itemize}
+    \item ADD, SUB, AND, OR, XOR
+    \item SLL, SRL, SRA
+    \item SLT, SLTU
+\end{itemize}
+
+\subsection{Control Unit Module}
+
+The control unit decodes instructions and generates control signals for:
+
+\begin{itemize}
+    \item R-type instructions (7 opcodes)
+    \item I-type instructions (multiple variants)
+    \item S-type, B-type, U-type, J-type instructions
+\end{itemize}
+
+\section{File Structure}
+
+\subsection{Source Files (00\_src/)}
+
+\begin{itemize}
+    \item \texttt{single\_cycle.sv}: Top-level module
+    \item \texttt{register\_file.sv}: Register file
+    \item \texttt{alu.sv}: Arithmetic Logic Unit
+    \item \texttt{control\_unit.sv}: Control unit
+    \item \texttt{imem.sv}: Instruction memory
+    \item \texttt{dmem.sv}: Data memory
+\end{itemize}
+
+\subsection{Testbench Files (01\_bench/)}
+
+\begin{itemize}
+    \item \texttt{tbench.sv}: Top-level testbench
+    \item \texttt{driver.sv}: Stimulus driver
+    \item \texttt{scoreboard.sv}: Result checker
+    \item \texttt{tlib.svh}: Utility library
+\end{itemize}
+
+\subsection{Simulation Directories}
+
+\begin{itemize}
+    \item \texttt{10\_sim/}: Verilator simulation files
+    \item \texttt{11\_xm/}: Xcelium simulation files
+\end{itemize}
+
+\section{Memory Map Details}
+
+\subsection{Complete Address Map}
+
+Table~\ref{tab:complete_memory_map} shows the complete memory map.
+
+\begin{table}[h]
+\centering
+\caption{Complete Memory Map}
+\label{tab:complete_memory_map}
+\begin{tabular}{lll}
+\toprule
+\textbf{Base} & \textbf{Top} & \textbf{Description} \\
+\midrule
+0x1001\_1000 & 0xFFFF\_FFFF & Reserved \\
+0x1001\_0000 & 0x1001\_0FFF & Switches (read-only) \\
+0x1000\_5000 & 0x1000\_FFFF & Reserved \\
+0x1000\_4000 & 0x1000\_4FFF & LCD Control \\
+0x1000\_3000 & 0x1000\_3FFF & HEX4-7 Displays \\
+0x1000\_2000 & 0x1000\_2FFF & HEX0-3 Displays \\
+0x1000\_1000 & 0x1000\_1FFF & Green LEDs \\
+0x1000\_0000 & 0x1000\_0FFF & Red LEDs \\
+0x0000\_0800 & 0x0FFF\_FFFF & Reserved \\
+0x0000\_0000 & 0x0000\_07FF & Data Memory (2KB) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Instruction Encoding}
+
+\subsection{RISC-V Instruction Formats}
+
+All RISC-V instructions are 32 bits wide with the following formats:
+
+\begin{itemize}
+    \item \textbf{R-type}: opcode, rd, funct3, rs1, rs2, funct7
+    \item \textbf{I-type}: opcode, rd, funct3, rs1, immediate[11:0]
+    \item \textbf{S-type}: opcode, imm[4:0], funct3, rs1, rs2, imm[11:5]
+    \item \textbf{B-type}: opcode, imm[11], imm[4:1], funct3, rs1, rs2, imm[10:5], imm[12]
+    \item \textbf{U-type}: opcode, rd, imm[31:12]
+    \item \textbf{J-type}: opcode, rd, imm[19:12], imm[11], imm[10:1], imm[20], imm[30:21], imm[31]
+\end{itemize}
+
+\section{Control Signal Truth Table}
+
+Due to space limitations, the complete truth table is available in the source code comments. Key control signal combinations:
+
+\begin{itemize}
+    \item R-type: reg\_write=1, alu\_src\_a=00, alu\_src\_b=00
+    \item I-type: reg\_write=1, alu\_src\_a=00, alu\_src\_b=01
+    \item Load: reg\_write=1, mem\_read=1, mem\_to\_reg=01
+    \item Store: mem\_write=1, alu\_src\_a=00, alu\_src\_b=01
+    \item Branch: branch=1, alu\_src\_a=00, alu\_src\_b=00
+    \item Jump: jump=1, reg\_write=1, mem\_to\_reg=10
+\end{itemize}
+
+\section{Simulation Commands}
+
+\subsection{Verilator}
+
+\begin{verbatim}
+cd 10_sim
+verilator --cc --exe --build --top-module tbench -f ./flist
+./obj_dir/Vtbench
+\end{verbatim}
+
+\subsection{Xcelium}
+
+\begin{verbatim}
+cd 11_xm
+module load xcelium
+xrun -64bit -access +rwc -f ./flist
+simvision wave.shm
+\end{verbatim}
+
+\section{Testing Checklist}
+
+Before submission, verify:
+
+\begin{enumerate}
+    \item All files compile without errors
+    \item All modules instantiated correctly
+    \item Memory addresses match specification
+    \item I/O mapping correct
+    \item Test suite passes
+    \item File structure matches requirements
+    \item Documentation complete
+\end{enumerate}
+
+\section{References}
+
+All source code and testbenches follow:
+
+\begin{itemize}
+    \item RISC-V Instruction Set Manual, Volume I: User-Level ISA
+    \item SystemVerilog IEEE 1800-2017 standard
+    \item Milestone 2 specification document
+    \item TA-provided testbench requirements
+\end{itemize}
+

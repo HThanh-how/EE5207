@@ -1,0 +1,221 @@
+\chapter{Testing and Verification}
+
+\section{Testing Methodology}
+
+The processor verification follows a systematic approach:
+
+\begin{enumerate}
+    \item \textbf{Unit Testing}: Test individual modules (ALU, register file, memory)
+    \item \textbf{Integration Testing}: Test complete processor with instruction sequences
+    \item \textbf{ISA Testing}: Verify all instruction types with comprehensive test suite
+    \item \textbf{System Testing}: Run TA-provided testbench for final verification
+\end{enumerate}
+
+\section{Testbench Structure}
+
+The testbench consists of three main components:
+
+\begin{itemize}
+    \item \textbf{Driver}: Generates clock, reset, and input stimuli
+    \item \textbf{DUT (Device Under Test)}: The processor module
+    \item \textbf{Scoreboard}: Monitors outputs and verifies correctness
+\end{itemize}
+
+\section{Test Programs}
+
+\subsection{ISA Test Suite}
+
+The TA-provided test suite (\texttt{isa.mem}) includes tests for all instruction types:
+
+\begin{itemize}
+    \item Arithmetic instructions: ADD, ADDI, SUB
+    \item Logical instructions: AND, ANDI, OR, ORI, XOR, XORI
+    \item Comparison instructions: SLT, SLTI, SLTU, SLTIU
+    \item Shift instructions: SLL, SLLI, SRL, SRLI, SRA, SRAI
+    \item Load instructions: LW, LH, LHU, LB, LBU
+    \item Store instructions: SW, SH, SB
+    \item Branch instructions: BEQ, BNE, BLT, BGE, BLTU, BGEU
+    \item Jump instructions: JAL, JALR
+    \item Upper immediate instructions: LUI, AUIPC
+\end{itemize}
+
+\subsection{Expected Test Results}
+
+A correctly functioning processor should produce the following output:
+
+\begin{verbatim}
+SINGLE CYCLE TESTS
+
+add......PASS
+addi.....PASS
+sub......PASS
+and......PASS
+andi.....PASS
+or.......PASS
+ori......PASS
+xor......PASS
+xori.....PASS
+slt......PASS
+slti.....PASS
+sltu.....PASS
+sltiu....PASS
+sll......PASS
+slli.....PASS
+srl......PASS
+srli.....PASS
+sra......PASS
+srai.....PASS
+lw.......PASS
+lh.......PASS
+lhu......PASS
+lb.......PASS
+lbu......PASS
+sw.......PASS
+sh.......PASS
+sb.......PASS
+auipc....PASS
+lui......PASS
+beq......PASS
+bne......PASS
+blt......PASS
+bltu.....PASS
+bge......PASS
+bgeu.....PASS
+jal......PASS
+jalr.....PASS
+malgn....ERROR (expected, misaligned not required)
+iosw.....PASS
+
+END of ISA test
+\end{verbatim}
+
+\section{Verification Strategy}
+
+\subsection{Signal Monitoring}
+
+The testbench monitors key signals:
+
+\begin{itemize}
+    \item \texttt{o\_pc\_debug}: Tracks program counter to verify instruction flow
+    \item \texttt{o\_io\_ledr}: Used for test result output (scoreboard checks at specific PC values)
+    \item \texttt{o\_insn\_vld}: Ensures processor is executing valid instructions
+\end{itemize}
+
+\subsection{Test Execution Flow}
+
+\begin{enumerate}
+    \item Testbench loads \texttt{isa.mem} into instruction memory
+    \item Reset is applied, processor starts at PC = 0x0000\_0000
+    \item Processor executes instructions sequentially
+    \item Scoreboard monitors PC and LEDR outputs
+    \item When PC reaches 0x18, LEDR[7:0] contains test name (ASCII)
+    \item When PC reaches 0x1C, test completion is signaled
+\end{enumerate}
+
+\section{Simulation Tools}
+
+The processor can be simulated using:
+
+\begin{itemize}
+    \item \textbf{Verilator}: Fast compilation and simulation
+    \item \textbf{Xcelium}: Cadence simulator with GUI support
+    \item \textbf{ModelSim/QuestaSim}: Mentor Graphics simulator
+    \item \textbf{Vivado Simulator}: Xilinx simulator
+\end{itemize}
+
+\subsection{Verilator Workflow}
+
+\begin{verbatim}
+cd 10_sim
+make              # Compile and run
+make wave         # Open GTKWave for waveform viewing
+\end{verbatim}
+
+\subsection{Xcelium Workflow}
+
+\begin{verbatim}
+cd 11_xm
+module load xcelium
+make              # Run simulation
+make gui          # Open SimVision GUI
+\end{verbatim}
+
+\section{Debugging Methodology}
+
+When tests fail, debugging follows these steps:
+
+\begin{enumerate}
+    \item \textbf{Waveform Analysis}: Check signal values at failing instruction
+    \item \textbf{PC Tracking}: Verify instruction fetch at correct address
+    \item \textbf{Register Check}: Verify register file reads and writes
+    \item \textbf{ALU Verification}: Check ALU inputs and outputs
+    \item \textbf{Memory Access}: Verify memory reads and writes
+    \item \textbf{Control Signals}: Verify control unit outputs
+\end{enumerate}
+
+\section{Common Issues and Solutions}
+
+\subsection{Issue 1: Processor Hanging}
+
+\textbf{Symptoms}: No test output, simulation runs indefinitely.
+
+\textbf{Causes}:
+\begin{itemize}
+    \item Branch instruction logic incorrect
+    \item PC update logic missing
+    \item Infinite loop in test program
+\end{itemize}
+
+\textbf{Solution}: Check branch condition evaluation and PC update logic.
+
+\subsection{Issue 2: Wrong Test Results}
+
+\textbf{Symptoms}: Tests show ERROR instead of PASS.
+
+\textbf{Causes}:
+\begin{itemize}
+    \item ALU operation incorrect
+    \item Immediate generation wrong
+    \item Memory access address calculation error
+\end{itemize}
+
+\textbf{Solution}: Verify instruction decoding and execution logic.
+
+\subsection{Issue 3: Memory Access Errors}
+
+\textbf{Symptoms}: Load/store operations fail.
+
+\textbf{Causes}:
+\begin{itemize}
+    \item Wrong byte ordering (big-endian vs little-endian)
+    \item Sign extension incorrect
+    \item Address alignment issues
+\end{itemize}
+
+\textbf{Solution}: Verify byte ordering and sign extension logic.
+
+\section{Code Coverage}
+
+While formal code coverage analysis was not performed, the test suite ensures:
+
+\begin{itemize}
+    \item All instruction types are tested
+    \item Both signed and unsigned operations are verified
+    \item All branch conditions are exercised
+    \item Memory-mapped I/O is tested
+    \item Edge cases (register x0, misaligned addresses) are handled
+\end{itemize}
+
+\section{Performance Metrics}
+
+The single-cycle processor has the following characteristics:
+
+\begin{itemize}
+    \item \textbf{Clock Frequency}: Determined by longest combinational path
+    \item \textbf{Cycles per Instruction}: 1 (by design)
+    \item \textbf{Critical Path}: Through ALU, memory access, or register file
+    \item \textbf{Area}: Function of memory size and register file
+\end{itemize}
+
+These metrics are not critical for single-cycle implementation but will be important for pipelined versions in future milestones.
+

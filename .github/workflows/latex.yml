@@ -1,0 +1,61 @@
+name: Build LaTeX PDF - Milestone 2
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'EE5207_Sun/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'EE5207_Sun/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Diagnose
+        run: |
+          echo "Triggered on $GITHUB_REF@${GITHUB_SHA}"
+          ls -la EE5207_Sun || true
+
+      - name: Compile LaTeX (XeLaTeX)
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: EE5207_Sun/main.tex
+          latexmk_use_xelatex: true
+          latexmk_shell_escape: true
+          extra_system_packages: |
+          pre_compile: |
+            tlmgr update --self
+            tlmgr install biblatex biber biblatex-ieee csquotes siunitx circuitikz lm pgfplots babel-english fontspec listings
+
+      - name: Publish PDF to project root
+        run: |
+          cp EE5207_Sun/main.pdf EE5207_Sun/Milestone2_Report.pdf
+          ls -la EE5207_Sun
+
+      - name: Upload artifact (PDF)
+        uses: actions/upload-artifact@v4
+        with:
+          name: milestone2-report-pdf
+          path: EE5207_Sun/Milestone2_Report.pdf
+
+      - name: Upload logs (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: milestone2-report-logs
+          path: |
+            EE5207_Sun/main.log
+            EE5207_Sun/main.aux
+            EE5207_Sun/main.toc
+            EE5207_Sun/main.lof
+            EE5207_Sun/main.lot

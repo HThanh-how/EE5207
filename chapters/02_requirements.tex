@@ -1,0 +1,153 @@
+\chapter{Requirements and Specifications}
+
+\section{Processor Specification}
+
+\subsection{Instruction Set Architecture}
+
+The processor implements the RV32I base instruction set, which includes:
+
+\begin{itemize}
+    \item \textbf{R-type instructions}: ADD, SUB, AND, OR, XOR, SLL, SRL, SRA, SLT, SLTU
+    \item \textbf{I-type instructions}: ADDI, ANDI, ORI, XORI, SLLI, SRLI, SRAI, SLTI, SLTIU, LW, LH, LHU, LB, LBU, JALR
+    \item \textbf{S-type instructions}: SW, SH, SB
+    \item \textbf{B-type instructions}: BEQ, BNE, BLT, BGE, BLTU, BGEU
+    \item \textbf{U-type instructions}: LUI, AUIPC
+    \item \textbf{J-type instructions}: JAL
+\end{itemize}
+
+FENCE instructions are excluded from the implementation as per project requirements.
+
+\subsection{Top-Level Interface}
+
+The processor module (\texttt{single\_cycle.sv}) must provide the following interface:
+
+\begin{itemize}
+    \item \textbf{Clock and Reset}: \texttt{i\_clk} (rising edge), \texttt{i\_reset} (active LOW)
+    \item \textbf{Debug Outputs}: \texttt{o\_pc\_debug} (32-bit PC), \texttt{o\_insn\_vld} (instruction valid flag)
+    \item \textbf{I/O Outputs}: \texttt{o\_io\_ledr}, \texttt{o\_io\_ledg}, \texttt{o\_io\_lcd}, \texttt{o\_io\_hex0..7}
+    \item \textbf{I/O Inputs}: \texttt{i\_io\_sw} (32-bit switches)
+\end{itemize}
+
+\section{Memory Specifications}
+
+\subsection{Instruction Memory (IMEM)}
+
+\begin{itemize}
+    \item \textbf{Size}: 16KB (16384 bytes) to support testbench requirements
+    \item \textbf{Type}: Read-only memory (ROM) implemented as logic elements
+    \item \textbf{Address Width}: At least 14 bits (supporting addresses up to 0x0000\_7FFF)
+    \item \textbf{Initialization}: Loaded from \texttt{isa.mem} file using \texttt{\$readmemh}
+    \item \textbf{Access}: Asynchronous read (combinational)
+\end{itemize}
+
+\subsection{Data Memory (DMEM)}
+
+\begin{itemize}
+    \item \textbf{Size}: 2KB (2048 bytes)
+    \item \textbf{Address Range}: 0x0000\_0000 to 0x0000\_07FF
+    \item \textbf{Type}: Read-write memory (RAM) implemented as logic elements
+    \item \textbf{Access}: Asynchronous read, synchronous write (on clock edge)
+    \item \textbf{Supported Operations}: Byte (LB/LBU/SB), half-word (LH/LHU/SH), word (LW/SW) access
+    \item \textbf{Byte Ordering}: Little-endian (LSB at lower address)
+\end{itemize}
+
+\section{Memory-Mapped I/O}
+
+Table~\ref{tab:memory_map} shows the complete memory mapping for the processor.
+
+\begin{table}[h]
+\centering
+\caption{Memory-Mapped I/O Address Map}
+\label{tab:memory_map}
+\begin{tabular}{lll}
+\toprule
+\textbf{Base Address} & \textbf{Top Address} & \textbf{Mapping} \\
+\midrule
+0x1001\_1000 & 0xFFFF\_FFFF & Reserved \\
+0x1001\_0000 & 0x1001\_0FFF & Switches (read) \\
+0x1000\_5000 & 0x1000\_FFFF & Reserved \\
+0x1000\_4000 & 0x1000\_4FFF & LCD Control Registers \\
+0x1000\_3000 & 0x1000\_3FFF & Seven-segment LEDs 7-4 \\
+0x1000\_2000 & 0x1000\_2FFF & Seven-segment LEDs 3-0 \\
+0x1000\_1000 & 0x1000\_1FFF & Green LEDs \\
+0x1000\_0000 & 0x1000\_0FFF & Red LEDs \\
+0x0000\_0800 & 0x0FFF\_FFFF & Reserved \\
+0x0000\_0000 & 0x0000\_07FF & Data Memory (2KB) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{I/O Register Details}
+
+\subsubsection{Red LEDs (LEDR)}
+\begin{itemize}
+    \item \textbf{Address}: 0x1000\_0000 - 0x1000\_0FFF
+    \item \textbf{Bits 16:0}: Connected to 17 red LEDs (bit 16 = LED16, bit 0 = LED0)
+    \item \textbf{Bits 31:17}: Reserved (should be 0)
+\end{itemize}
+
+\subsubsection{Green LEDs (LEDG)}
+\begin{itemize}
+    \item \textbf{Address}: 0x1000\_1000 - 0x1000\_1FFF
+    \item \textbf{Bits 7:0}: Connected to 8 green LEDs
+    \item \textbf{Bits 31:8}: Reserved (should be 0)
+\end{itemize}
+
+\subsubsection{Seven-Segment Displays (HEX)}
+\begin{itemize}
+    \item \textbf{HEX0-3 Address}: 0x1000\_2000 - 0x1000\_2FFF
+    \item \textbf{HEX4-7 Address}: 0x1000\_3000 - 0x1000\_3FFF
+    \item \textbf{Bit Mapping}: 
+    \begin{itemize}
+        \item Bits 30:24 → HEX3/HEX7
+        \item Bits 22:16 → HEX2/HEX6
+        \item Bits 14:8 → HEX1/HEX5
+        \item Bits 6:0 → HEX0/HEX4
+        \item Bits 31, 23, 15, 7 → Reserved
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{LCD Display}
+\begin{itemize}
+    \item \textbf{Address}: 0x1000\_4000 - 0x1000\_4FFF
+    \item \textbf{Bit 31}: ON control
+    \item \textbf{Bit 10}: EN (Enable)
+    \item \textbf{Bit 9}: RS (Register Select)
+    \item \textbf{Bit 8}: R/W (Read/Write)
+    \item \textbf{Bits 7:0}: Data bus
+\end{itemize}
+
+\subsubsection{Switches}
+\begin{itemize}
+    \item \textbf{Address}: 0x1001\_0000 - 0x1001\_0FFF
+    \item \textbf{Bits 16:0}: Switch states (SW16 to SW0)
+    \item \textbf{Bit 17}: Reset signal
+    \item \textbf{Bits 31:18}: Reserved
+\end{itemize}
+
+\section{Control Signals}
+
+The control unit generates the following signals for each instruction:
+
+\begin{itemize}
+    \item \textbf{reg\_write}: Enable register file write (for instructions that write to registers)
+    \item \textbf{mem\_write}/\textbf{mem\_read}: Enable data memory write/read
+    \item \textbf{mem\_to\_reg}: Select data source for register write (00=ALU, 01=Memory, 10=PC+4)
+    \item \textbf{alu\_src\_a}/\textbf{alu\_src\_b}: Select ALU operand sources
+    \item \textbf{alu\_op}: ALU operation code (4-bit)
+    \item \textbf{branch}: Enable branch instruction execution
+    \item \textbf{jump}: Enable jump instruction execution
+    \item \textbf{mem\_size}: Memory access size (000=byte, 001=half-word, 010=word)
+\end{itemize}
+
+\section{Design Constraints}
+
+\begin{itemize}
+    \item Processor must complete instruction execution in a single clock cycle
+    \item All instructions must be implemented using synthesizable SystemVerilog constructs
+    \item Avoid unsynthesizable operators: subtraction (-), comparison (<, >), shifting (<<, >>, >>>), multiplication (*), division (/), modulo (\%) in RTL code
+    \item Memory models use logic elements (not behavioral models)
+    \item Register x0 must always read as zero, regardless of write attempts
+    \item Support for misaligned memory access (truncation to word boundary for LW, to half-word boundary for LH/SH)
+\end{itemize}
+

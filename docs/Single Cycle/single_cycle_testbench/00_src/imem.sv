@@ -10,7 +10,11 @@ module imem (
     logic [ADDR_WIDTH-1:0] byte_addr;
 
     initial begin
+`ifdef DEMO_MEM
+        $readmemh("../02_test/demo.mem", mem);
+`else
         $readmemh("../02_test/isa.mem", mem);
+`endif
     end
 
     assign byte_addr = addr[ADDR_WIDTH-1:0];
