@@ -175,19 +175,20 @@ module single_cycle (
     assign dmem_we = mem_write;
 
     always_comb begin
-        if (dmem_addr >= 32'h1000_0000) begin
-            if (dmem_addr >= 32'h1001_0000 && dmem_addr < 32'h1001_1000 && mem_read) begin
-                io_data = i_io_sw;
-            end else if (dmem_addr >= 32'h1000_4000 && dmem_addr < 32'h1000_5000 && mem_read) begin
+        // I/O map (the test/README dùng 0x0000_1xxx)
+        if (dmem_addr >= 32'h0000_1000) begin
+            if (dmem_addr >= 32'h0000_1018 && dmem_addr < 32'h0000_101C && mem_read) begin
                 io_data = {o_io_lcd};
-            end else if (dmem_addr >= 32'h1000_3000 && dmem_addr < 32'h1000_4000 && mem_read) begin
+            end else if (dmem_addr >= 32'h0000_1014 && dmem_addr < 32'h0000_1018 && mem_read) begin
                 io_data = {1'b0, o_io_hex7, 1'b0, o_io_hex6, 1'b0, o_io_hex5, 1'b0, o_io_hex4};
-            end else if (dmem_addr >= 32'h1000_2000 && dmem_addr < 32'h1000_3000 && mem_read) begin
+            end else if (dmem_addr >= 32'h0000_1010 && dmem_addr < 32'h0000_1014 && mem_read) begin
                 io_data = {1'b0, o_io_hex3, 1'b0, o_io_hex2, 1'b0, o_io_hex1, 1'b0, o_io_hex0};
-            end else if (dmem_addr >= 32'h1000_1000 && dmem_addr < 32'h1000_2000 && mem_read) begin
+            end else if (dmem_addr >= 32'h0000_100C && dmem_addr < 32'h0000_1010 && mem_read) begin
                 io_data = o_io_ledg;
-            end else if (dmem_addr >= 32'h1000_0000 && dmem_addr < 32'h1000_1000 && mem_read) begin
+            end else if (dmem_addr >= 32'h0000_1000 && dmem_addr < 32'h0000_1004 && mem_read) begin
                 io_data = o_io_ledr;
+            end else if (dmem_addr >= 32'h0000_1008 && dmem_addr < 32'h0000_100C && mem_read) begin
+                io_data = i_io_sw;
             end else begin
                 io_data = 32'b0;
             end
@@ -227,12 +228,15 @@ module single_cycle (
             o_io_hex5 <= 7'b0;
             o_io_hex6 <= 7'b0;
             o_io_hex7 <= 7'b0;
-        end else if (mem_write && dmem_addr >= 32'h1000_0000) begin
-            if (dmem_addr >= 32'h1000_0000 && dmem_addr < 32'h1000_1000) begin
+        end else if (mem_write && dmem_addr >= 32'h0000_1000) begin
+            // LEDR @ 0x0000_1000
+            if (dmem_addr >= 32'h0000_1000 && dmem_addr < 32'h0000_1004) begin
                 o_io_ledr <= dmem_wdata;
-            end else if (dmem_addr >= 32'h1000_1000 && dmem_addr < 32'h1000_2000) begin
+            // LEDG @ 0x0000_100C
+            end else if (dmem_addr >= 32'h0000_100C && dmem_addr < 32'h0000_1010) begin
                 o_io_ledg <= dmem_wdata;
-            end else if (dmem_addr >= 32'h1000_2000 && dmem_addr < 32'h1000_3000) begin
+            // HEX0..3 @ 0x0000_1010
+            end else if (dmem_addr >= 32'h0000_1010 && dmem_addr < 32'h0000_1014) begin
                 case (mem_size)
                     3'b000: begin
                         case (dmem_addr[1:0])
@@ -264,7 +268,8 @@ module single_cycle (
                         o_io_hex3 <= dmem_wdata[30:24];
                     end
                 endcase
-            end else if (dmem_addr >= 32'h1000_3000 && dmem_addr < 32'h1000_4000) begin
+            // HEX4..7 @ 0x0000_1014
+            end else if (dmem_addr >= 32'h0000_1014 && dmem_addr < 32'h0000_1018) begin
                 case (mem_size)
                     3'b000: begin
                         case (dmem_addr[1:0])
@@ -296,7 +301,8 @@ module single_cycle (
                         o_io_hex7 <= dmem_wdata[30:24];
                     end
                 endcase
-            end else if (dmem_addr >= 32'h1000_4000 && dmem_addr < 32'h1000_5000) begin
+            // LCD @ 0x0000_1018
+            end else if (dmem_addr >= 32'h0000_1018 && dmem_addr < 32'h0000_101C) begin
                 o_io_lcd <= dmem_wdata;
             end
         end
