@@ -1,0 +1,32 @@
+This report presents the design, implementation, and verification of a single-cycle RISC-V processor supporting the RV32I instruction set architecture. The processor is designed using SystemVerilog and implements all required instructions including arithmetic, logical, load/store, branch, and jump operations.
+
+\textbf{Key Objectives:}
+\begin{itemize}
+    \item Design a fully functional single-cycle RISC-V processor following RV32I ISA specifications
+    \item Implement memory-mapped I/O system for peripheral communication (LEDs, LCD, Switches, 7-segment displays)
+    \item Verify processor correctness through comprehensive testbench validation
+    \item Achieve compatibility with TA-provided testbench for automated grading
+\end{itemize}
+
+\textbf{Methodology:}
+The project follows a modular design approach, breaking down the processor into functional units:
+
+\begin{enumerate}
+    \item \textbf{Arithmetic Logic Unit (ALU)}: Implements 10 operations (ADD, SUB, AND, OR, XOR, SLL, SRL, SRA, SLT, SLTU)
+    \item \textbf{Register File}: 32 registers with 2 read ports and 1 write port, register x0 hardwired to zero
+    \item \textbf{Instruction Memory (IMEM)}: 16KB read-only memory for storing program instructions
+    \item \textbf{Data Memory (DMEM)}: 2KB read-write memory with byte, half-word, and word access
+    \item \textbf{Control Unit}: Decodes instructions and generates control signals for datapath
+    \item \textbf{Load-Store Unit (LSU)}: Manages memory-mapped I/O and data memory access
+\end{enumerate}
+
+\textbf{Key Results:}
+\begin{itemize}
+    \item Successfully implemented all RV32I instructions except FENCE
+    \item Achieved correct memory mapping: DMEM (0x0000\_0000-0x0000\_07FF), LEDR (0x1000\_0000), LEDG (0x1000\_1000), HEX (0x1000\_2000/3000), LCD (0x1000\_4000), SW (0x1001\_0000)
+    \item Passed all 41 ISA test cases including arithmetic, logical, load/store, branch, and jump instructions
+    \item Verified processor functionality through both custom testbench and TA-provided comprehensive test suite
+\end{itemize}
+
+The project demonstrates a complete understanding of processor design principles, datapath implementation, control unit design, and hardware-software interface through memory-mapped I/O. The implementation serves as a foundation for understanding more advanced processor architectures in subsequent milestones.
+

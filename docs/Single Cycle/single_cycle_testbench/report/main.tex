@@ -1,0 +1,73 @@
+% !TeX program = xelatex
+\documentclass[12pt,a4paper,oneside]{report}
+
+\input{preamble}
+
+\begin{document}
+
+\pagenumbering{roman}
+
+% Title page
+\input{titlepage}
+
+% Abstract
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\input{chapters/00_abstract}
+
+% Table of Contents
+\tableofcontents
+\cleardoublepage
+
+% List of Figures
+\listoffigures
+\cleardoublepage
+
+% List of Tables
+\listoftables
+\cleardoublepage
+
+% List of Abbreviations
+\chapter*{List of Abbreviations}
+\addcontentsline{toc}{chapter}{List of Abbreviations}
+\input{chapters/00_abbreviations}
+
+\cleardoublepage
+\pagenumbering{arabic}
+
+% Main Chapters
+\input{chapters/01_introduction}
+\input{chapters/02_requirements}
+\input{chapters/03_architecture}
+\input{chapters/04_implementation}
+\input{chapters/05_testing}
+\input{chapters/06_results}
+\input{chapters/07_conclusion}
+
+% References
+\begin{thebibliography}{99}
+\addcontentsline{toc}{chapter}{References}
+
+\bibitem{riscv-spec}
+Waterman, A., \& Asanović, K. (2019). \textit{The RISC-V Instruction Set Manual, Volume I: User-Level ISA}. RISC-V Foundation.
+
+\bibitem{systemverilog}
+IEEE Standard for SystemVerilog--Unified Hardware Design, Specification, and Verification Language. IEEE Std 1800-2017.
+
+\bibitem{patterson-hennessy}
+Patterson, D. A., \& Hennessy, J. L. (2017). \textit{Computer Organization and Design RISC-V Edition: The Hardware Software Interface}. Morgan Kaufmann.
+
+\bibitem{harris-harris}
+Harris, D. M., \& Harris, S. L. (2012). \textit{Digital Design and Computer Architecture}. Morgan Kaufmann.
+
+\bibitem{single-cycle}
+Hennessy, J. L., \& Patterson, D. A. (2011). \textit{Computer Architecture: A Quantitative Approach}. Morgan Kaufmann.
+
+\end{thebibliography}
+
+% Appendix
+\appendix
+\input{chapters/08_appendix}
+
+\end{document}
+

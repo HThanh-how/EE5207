@@ -1,0 +1,15 @@
+# Verilator filelist for Milestone 2
+# Please reorder by module hierarchy (top module last)
+
+./../00_src/register_file.sv
+./../00_src/alu.sv
+./../00_src/dmem.sv
+./../00_src/imem.sv
+./../00_src/control_unit.sv
+./../00_src/single_cycle.sv
+
+./../01_bench/tlib.svh
+./../01_bench/driver.sv
+./../01_bench/scoreboard.sv
+./../01_bench/tbench.sv
+

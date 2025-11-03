@@ -1,0 +1,54 @@
+\chapter{Introduction}
+
+\section{Background}
+
+RISC-V is an open-source instruction set architecture (ISA) designed for simplicity, modularity, and extensibility. Unlike proprietary ISAs, RISC-V provides a clean and consistent instruction set that makes it ideal for educational purposes and research in computer architecture. The RV32I base instruction set includes fundamental integer operations, making it perfect for implementing a single-cycle processor that demonstrates core computer architecture concepts.
+
+Single-cycle processors execute one instruction per clock cycle, providing a straightforward model for understanding processor design principles. While not as efficient as pipelined processors, single-cycle designs offer clear separation of concerns between datapath and control logic, making them ideal for educational purposes.
+
+\section{Project Objectives}
+
+This project aims to design and implement a complete single-cycle RISC-V processor with the following objectives:
+
+\begin{itemize}
+    \item \textbf{ISA Compliance}: Implement all RV32I instructions except FENCE, ensuring full compatibility with the RISC-V specification
+    \item \textbf{Modular Design}: Develop a well-structured design with separate modules for each functional unit (ALU, register file, memory, control unit)
+    \item \textbf{I/O Integration}: Implement memory-mapped I/O system for communication with peripheral devices (LEDs, LCD, switches, 7-segment displays)
+    \item \textbf{Verification}: Create comprehensive testbenches and verify functionality through both custom tests and TA-provided test suites
+    \item \textbf{Documentation}: Document design decisions, implementation details, and verification results
+\end{itemize}
+
+\section{Project Scope}
+
+The scope of this project includes:
+
+\begin{enumerate}
+    \item Design and implementation of all processor components in SystemVerilog
+    \item Support for RV32I instruction set (excluding FENCE instructions)
+    \item Memory-mapped I/O with specific address ranges for peripherals
+    \item Functional verification through simulation
+    \item Compliance with TA-provided testbench requirements
+\end{enumerate}
+
+The project does not include:
+\begin{itemize}
+    \item Pipelining or performance optimizations
+    \item Floating-point or vector extensions
+    \item Cache implementation
+    \item Physical implementation on FPGA (beyond simulation)
+\end{itemize}
+
+\section{Report Organization}
+
+This report is organized as follows:
+
+\begin{itemize}
+    \item \textbf{Chapter 2}: Requirements and specifications for the processor design
+    \item \textbf{Chapter 3}: Processor architecture and datapath design
+    \item \textbf{Chapter 4}: Detailed implementation of each module
+    \item \textbf{Chapter 5}: Testing methodology and testbench design
+    \item \textbf{Chapter 6}: Results and verification outcomes
+    \item \textbf{Chapter 7}: Conclusion and future work
+    \item \textbf{Appendix}: Additional implementation details and code listings
+\end{itemize}
+
