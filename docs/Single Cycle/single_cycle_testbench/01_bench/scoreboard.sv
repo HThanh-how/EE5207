@@ -27,11 +27,13 @@ end
 bit started;
 bit output_seen;
 integer cycle_count;
+logic [31:0] last_ledr;
 
 initial begin
   started      = 1'b0;
   output_seen  = 1'b0;
   cycle_count  = 0;
+  last_ledr    = 32'h0;
 end
 
 // In trạng thái khi reset được nhả (reset active low)
@@ -52,15 +54,20 @@ always @(negedge i_clk) begin
       `endif
     end
 
-    // Giai đoạn output: PC = 0x18
-    if (o_pc_debug == 32'h18) begin
+    // Giai đoạn output: in ký tự khi LEDR thay đổi (ổn định với nhiều biến thể test)
+    if (o_io_ledr !== last_ledr) begin
+      // đánh dấu đã thấy output lần đầu
       if (!output_seen) begin
         `ifdef VERBOSE_STATUS
-          $display("\n[STATUS] OUTPUT PHASE @PC=0x18 (cycle=%0d)", cycle_count);
+          $display("\n[STATUS] OUTPUT PHASE (cycle=%0d)", cycle_count);
         `endif
+        output_seen <= 1'b1;
       end
-      output_seen <= 1'b1;
-      $write("%s", o_io_ledr[7:0]);
+      last_ledr <= o_io_ledr;
+      // in ký tự từ byte thấp nếu là ASCII hiển thị được
+      if (o_io_ledr[7:0] != 8'h00) begin
+        $write("%s", o_io_ledr[7:0]);
+      end
     end
 
     // Kết thúc test: PC = 0x1C
