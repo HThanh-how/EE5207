@@ -25,6 +25,15 @@ The processor successfully passed all required tests in the TA-provided test sui
     \item \textbf{Optional Features}: Misaligned address handling (returns ERROR as expected)
 \end{itemize}
 
+Figure~\ref{fig:isa_test_results} shows the terminal output from the ISA test suite execution, demonstrating that all instruction tests passed successfully. The test suite verified all 41 instruction types including arithmetic, logical, shift, memory, and control flow instructions.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/isa_test_results.png}
+    \caption{ISA test suite execution results showing all instruction tests passing. The simulation completed successfully at 19,398ns, confirming correct implementation of all RV32I instructions.}
+    \label{fig:isa_test_results}
+\end{figure}
+
 \subsection{Test Execution}
 
 The testbench correctly:
@@ -36,6 +45,15 @@ The testbench correctly:
     \item Displayed test results via scoreboard
     \item Completed simulation successfully
 \end{itemize}
+
+Figure~\ref{fig:simulation_waveform} shows the SimVision waveform viewer displaying the simulation results. The waveform captures the behavior of key processor signals including ALU operations, memory accesses, control signals, and I/O operations throughout the simulation run.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/simulation_waveform.png}
+    \caption{SimVision waveform display showing processor signals during simulation. The waveform shows ALU operations, memory accesses, control signals, and I/O operations over the complete simulation duration of 19,398ns.}
+    \label{fig:simulation_waveform}
+\end{figure}
 
 \section{Memory Mapping Verification}
 
