@@ -12,13 +12,13 @@ module register_file (
     logic [31:0] registers [0:31];
 
     always_ff @(posedge clk) begin
-        if (we && addr_rd != 0) begin
+        if (we && addr_rd != 5'b0) begin
             registers[addr_rd] <= wdata;
         end
     end
 
-    assign rdata_rs1 = (addr_rs1 == 0) ? 32'b0 : registers[addr_rs1];
-    assign rdata_rs2 = (addr_rs2 == 0) ? 32'b0 : registers[addr_rs2];
+    assign rdata_rs1 = (addr_rs1 == 5'b0) ? 32'b0 : registers[addr_rs1];
+    assign rdata_rs2 = (addr_rs2 == 5'b0) ? 32'b0 : registers[addr_rs2];
 
 endmodule
 

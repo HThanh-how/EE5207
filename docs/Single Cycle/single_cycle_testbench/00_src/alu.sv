@@ -18,7 +18,7 @@ module alu (
             4'b0111: alu_out = $signed(op_a) >>> op_b[4:0];
             4'b1000: alu_out = ($signed(op_a) < $signed(op_b)) ? 32'b1 : 32'b0;
             4'b1001: alu_out = (op_a < op_b) ? 32'b1 : 32'b0;
-            default: alu_out = op_a + op_b;
+            default: alu_out = 32'b0;
         endcase
     end
 
