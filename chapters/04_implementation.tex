@@ -122,7 +122,7 @@ end
 \begin{itemize}
     \item \textbf{LUI}: \texttt{alu\_src\_a = 2'b11} (immediate upper), \texttt{alu\_src\_b = 2'b11} (zero), \texttt{alu\_op = ADD}
     \item \textbf{AUIPC}: \texttt{alu\_src\_a = 2'b01} (PC), \texttt{alu\_src\_b = 2'b01} (immediate), \texttt{alu\_op = ADD}
-    \item \textbf{JALR}: Similar to JAL but uses rs1 + immediate instead of PC + immediate
+    \item \textbf{JALR}: Jump target is calculated as \texttt{rs1\_data + imm} (computed directly, not through ALU). The control unit sets \texttt{alu\_src\_a = 2'b10} (PC) and \texttt{alu\_src\_b = 2'b01} (imm) for ALU, but the actual jump target uses \texttt{rs1\_data + imm} from the register file.
     \item \textbf{Shift instructions}: Use immediate[4:0] for shift amount (not full 32-bit immediate)
 \end{itemize}
 
@@ -143,7 +143,20 @@ module imem (
     logic [ADDR_WIDTH-1:0] byte_addr;
 
     initial begin
-        $readmemh("../02_test/isa.mem", mem);
+        integer fd;
+`ifdef DEMO_MEM
+        $readmemh("../02_test/demo.mem", mem);
+`else
+        // Prefer server-required file isa.mem; if missing (local), fallback to isa_1b.hex
+        fd = $fopen("../02_test/isa.mem", "r");
+        if (fd) begin
+            $fclose(fd);
+            $readmemh("../02_test/isa.mem", mem);
+        end else begin
+            $display("[IMEM] ../02_test/isa.mem not found. Falling back to ../02_test/isa_1b.hex");
+            $readmemh("../02_test/isa_1b.hex", mem);
+        end
+`endif
     end
 
     assign byte_addr = addr[ADDR_WIDTH-1:0];
@@ -157,43 +170,89 @@ endmodule
 
 Instructions are stored in little-endian format (LSB at lower address), matching RISC-V specification.
 
+\subsection{Initialization Logic}
+
+The instruction memory includes fallback logic for local testing:
+\begin{itemize}
+    \item \textbf{Primary}: Attempts to load from \texttt{../02\_test/isa.mem} (required on server)
+    \item \textbf{Fallback}: If \texttt{isa.mem} is not found, loads from \texttt{../02\_test/isa\_1b.hex} (for local testing)
+    \item \textbf{Demo Mode}: If \texttt{DEMO\_MEM} is defined, loads from \texttt{../02\_test/demo.mem}
+\end{itemize}
+
 \section{Data Memory Implementation}
 
-The data memory supports byte, half-word, and word accesses with proper sign extension:
+The data memory supports byte, half-word, and word accesses with proper sign extension. The DMEM module only handles addresses in the range 0x0000\_0000 to 0x0000\_07FF (2KB). Writes to I/O regions are handled separately in the top-level module.
 
 \begin{lstlisting}[language=Verilog, caption=Data Memory Write]
 always_ff @(posedge clk) begin
-    if (we && word_addr < MEM_SIZE) begin
+    if (we && byte_addr < MEM_SIZE) begin
         case (mem_size)
-            3'b000: mem[word_addr] <= wdata[7:0];        // SB
+            3'b000: begin                                // SB
+                mem[byte_addr] <= wdata[7:0];
+            end
             3'b001: begin                                // SH
-                mem[word_addr]   <= wdata[7:0];
-                mem[word_addr+1] <= wdata[15:8];
+                if (byte_addr+1 < MEM_SIZE) begin
+                    mem[byte_addr]   <= wdata[7:0];
+                    mem[byte_addr+1] <= wdata[15:8];
+                end
             end
             3'b010: begin                                // SW
-                mem[word_addr]   <= wdata[7:0];
-                mem[word_addr+1] <= wdata[15:8];
-                mem[word_addr+2] <= wdata[23:16];
-                mem[word_addr+3] <= wdata[31:24];
+                if (byte_addr+3 < MEM_SIZE) begin
+                    mem[byte_addr]   <= wdata[7:0];
+                    mem[byte_addr+1] <= wdata[15:8];
+                    mem[byte_addr+2] <= wdata[23:16];
+                    mem[byte_addr+3] <= wdata[31:24];
+                end
             end
         endcase
     end
 end
 \end{lstlisting}
 
+\subsection{Write Enable Logic}
+
+In the top-level module, the DMEM write enable is gated to only allow writes to the DMEM address range:
+
+\begin{lstlisting}[language=Verilog, caption=DMEM Write Enable Gating]
+assign dmem_we = mem_write && (dmem_addr < 32'h0000_0800);
+\end{lstlisting}
+
+This ensures that memory writes to I/O regions (0x1000\_0000 and above) are handled by the I/O write logic, not by the DMEM module.
+
 \subsection{Memory Read with Sign Extension}
+
+The data memory read logic handles sign extension and bounds checking:
 
 \begin{lstlisting}[language=Verilog, caption=Data Memory Read]
 always_comb begin
-    case (mem_size)
-        3'b000: rdata = {{24{mem[word_addr][7]}}, mem[word_addr]}; // LB
-        3'b001: rdata = {{16{mem[word_addr+1][7]}}, 
-                         mem[word_addr+1], mem[word_addr]}; // LH
-        3'b010: rdata = {mem[word_addr+3], mem[word_addr+2],
-                         mem[word_addr+1], mem[word_addr]}; // LW
-        3'b100: rdata = {24'b0, mem[word_addr]}; // LBU
-        3'b101: rdata = {16'b0, mem[word_addr+1], mem[word_addr]}; // LHU
-    endcase
+    if (byte_addr >= MEM_SIZE) begin
+        rdata = 32'b0;
+    end else begin
+        case (mem_size)
+            // LB: sign-extend byte at byte_addr
+            3'b000: rdata = {{24{mem[byte_addr][7]}}, mem[byte_addr]};
+            // LH: sign-extend halfword starting at byte_addr (little-endian)
+            3'b001: rdata = (byte_addr+1 < MEM_SIZE)
+                               ? {{16{mem[byte_addr+1][7]}}, 
+                                  mem[byte_addr+1], mem[byte_addr]}
+                               : {{16{mem[byte_addr][7]}}, mem[byte_addr], 16'b0};
+            // LW: word starting at byte_addr (little-endian)
+            3'b010: rdata = (byte_addr+3 < MEM_SIZE)
+                               ? {mem[byte_addr+3], mem[byte_addr+2], 
+                                  mem[byte_addr+1], mem[byte_addr]}
+                               : 32'b0;
+            // LBU: zero-extend byte
+            3'b100: rdata = {24'b0, mem[byte_addr]};
+            // LHU: zero-extend halfword
+            3'b101: rdata = (byte_addr+1 < MEM_SIZE)
+                               ? {16'b0, mem[byte_addr+1], mem[byte_addr]}
+                               : {16'b0, mem[byte_addr], 16'b0};
+            default: rdata = (byte_addr+3 < MEM_SIZE)
+                               ? {mem[byte_addr+3], mem[byte_addr+2], 
+                                  mem[byte_addr+1], mem[byte_addr]}
+                               : 32'b0;
+        endcase
+    end
 end
 \end{lstlisting}
 
@@ -203,38 +262,82 @@ The I/O system is integrated into the Load-Store Unit:
 
 \subsection{I/O Write Logic}
 
+The I/O write logic handles different memory access sizes for HEX displays:
+
 \begin{lstlisting}[language=Verilog, caption=I/O Write Implementation]
 always_ff @(posedge clk) begin
     if (~i_reset) begin
         o_io_ledr <= 32'b0;
         o_io_ledg <= 32'b0;
         o_io_lcd  <= 32'b0;
-        // Reset HEX displays
-    end else if (mem_write && dmem_addr >= 32'h1000_0000) begin
+        o_io_hex0 <= 7'b0;
+        // ... reset all HEX displays ...
+    end else if (mem_write) begin
+        // LEDR window @ 0x1000_0000 - 0x1000_0FFF
         if (dmem_addr >= 32'h1000_0000 && dmem_addr < 32'h1000_1000) begin
             o_io_ledr <= dmem_wdata;
+        // LEDG window @ 0x1000_1000 - 0x1000_1FFF
         end else if (dmem_addr >= 32'h1000_1000 && dmem_addr < 32'h1000_2000) begin
             o_io_ledg <= dmem_wdata;
+        // HEX0..3 window @ 0x1000_2000 - 0x1000_2FFF
+        end else if (dmem_addr >= 32'h1000_2000 && dmem_addr < 32'h1000_3000) begin
+            case (mem_size)
+                3'b000: // Byte access - select HEX based on address[1:0]
+                    case (dmem_addr[1:0])
+                        2'b00: o_io_hex0 <= dmem_wdata[6:0];
+                        2'b01: o_io_hex1 <= dmem_wdata[6:0];
+                        2'b10: o_io_hex2 <= dmem_wdata[6:0];
+                        2'b11: o_io_hex3 <= dmem_wdata[6:0];
+                    endcase
+                3'b001: // Half-word access - select pair based on address[1]
+                    if (dmem_addr[1] == 1'b0) begin
+                        o_io_hex0 <= dmem_wdata[6:0];
+                        o_io_hex1 <= dmem_wdata[14:8];
+                    end else begin
+                        o_io_hex2 <= dmem_wdata[6:0];
+                        o_io_hex3 <= dmem_wdata[14:8];
+                    end
+                3'b010: // Word access - update all four HEX displays
+                    o_io_hex0 <= dmem_wdata[6:0];
+                    o_io_hex1 <= dmem_wdata[14:8];
+                    o_io_hex2 <= dmem_wdata[22:16];
+                    o_io_hex3 <= dmem_wdata[30:24];
+            endcase
+        // HEX4..7 window @ 0x1000_3000 - 0x1000_3FFF
+        end else if (dmem_addr >= 32'h1000_3000 && dmem_addr < 32'h1000_4000) begin
+            // Similar logic for HEX4-7 with mem_size handling
+        // LCD window @ 0x1000_4000 - 0x1000_4FFF
+        end else if (dmem_addr >= 32'h1000_4000 && dmem_addr < 32'h1000_5000) begin
+            o_io_lcd <= dmem_wdata;
         end
-        // ... LCD and HEX handling ...
     end
 end
 \end{lstlisting}
 
 \subsection{I/O Read Logic}
 
+The I/O read logic routes memory reads to appropriate I/O registers or data memory:
+
 \begin{lstlisting}[language=Verilog, caption=I/O Read Implementation]
 always_comb begin
-    if (dmem_addr >= 32'h1000_0000) begin
-        if (dmem_addr >= 32'h1001_0000 && dmem_addr < 32'h1001_1000 && mem_read) begin
-            io_data = i_io_sw;
-        end else if (dmem_addr >= 32'h1000_4000 && dmem_addr < 32'h1000_5000 && mem_read) begin
+    if (mem_read) begin
+        if (dmem_addr >= 32'h1000_4000 && dmem_addr < 32'h1000_5000) begin
             io_data = o_io_lcd;
-        end else if (dmem_addr >= 32'h1000_2000 && dmem_addr < 32'h1000_3000 && mem_read) begin
+        end else if (dmem_addr >= 32'h1000_3000 && dmem_addr < 32'h1000_4000) begin
+            io_data = {1'b0, o_io_hex7, 1'b0, o_io_hex6, 
+                       1'b0, o_io_hex5, 1'b0, o_io_hex4};
+        end else if (dmem_addr >= 32'h1000_2000 && dmem_addr < 32'h1000_3000) begin
             io_data = {1'b0, o_io_hex3, 1'b0, o_io_hex2, 
                        1'b0, o_io_hex1, 1'b0, o_io_hex0};
+        end else if (dmem_addr >= 32'h1000_1000 && dmem_addr < 32'h1000_2000) begin
+            io_data = o_io_ledg;
+        end else if (dmem_addr >= 32'h1000_0000 && dmem_addr < 32'h1000_1000) begin
+            io_data = o_io_ledr;
+        end else if (dmem_addr >= 32'h1001_0000 && dmem_addr < 32'h1001_1000) begin
+            io_data = i_io_sw;
+        end else begin
+            io_data = dmem_rdata;
         end
-        // ... other I/O regions ...
     end else begin
         io_data = dmem_rdata;
     end

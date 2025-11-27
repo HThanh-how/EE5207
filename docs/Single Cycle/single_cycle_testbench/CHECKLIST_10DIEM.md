@@ -11,7 +11,7 @@
 - [x] **single_cycle.sv**: Top-level module đầy đủ
 - [x] **register_file.sv**: 32 registers, x0 luôn = 0
 - [x] **alu.sv**: Đầy đủ operations (ADD, SUB, AND, OR, XOR, SLL, SRL, SRA, SLT, SLTU)
-- [x] **imem.sv**: 8KB, load từ hex file đúng format
+- [x] **imem.sv**: 16KB, load từ isa.mem file (fallback to isa_1b.hex)
 - [x] **dmem.sv**: 2KB (0x0000_0000 - 0x0000_07FF), hỗ trợ byte/halfword/word
 - [x] **control_unit.sv**: Decode đầy đủ tất cả instruction types
 
@@ -33,10 +33,12 @@
 
 ## ✅ KIỂM TRA MEMORY MAPPING
 - [x] DMEM: 0x0000_0000 - 0x0000_07FF (2KB)
-- [x] I/O Switch: 0x0000_1000 (read)
-- [x] I/O LEDR: 0x0000_1010 (write)
-- [x] I/O LEDG: 0x0000_1014 (write)
-- [x] I/O LCD: 0x0000_1018 (write)
+- [x] I/O Switch: 0x1001_0000 - 0x1001_0FFF (read)
+- [x] I/O LEDR: 0x1000_0000 - 0x1000_0FFF (write)
+- [x] I/O LEDG: 0x1000_1000 - 0x1000_1FFF (write)
+- [x] I/O HEX0-3: 0x1000_2000 - 0x1000_2FFF (write)
+- [x] I/O HEX4-7: 0x1000_3000 - 0x1000_3FFF (write)
+- [x] I/O LCD: 0x1000_4000 - 0x1000_4FFF (write)
 - [x] Byte ordering: Little-endian (đúng RISC-V)
 
 ## ✅ KIỂM TRA CONTROL SIGNALS
@@ -63,11 +65,12 @@
 - [x] PC debug: o_pc_debug = pc
 
 ## ✅ KIỂM TRA I/O
-- [x] LEDR: Update khi write vào 0x0000_1010
-- [x] LEDG: Update khi write vào 0x0000_1014
-- [x] LCD: Update khi write vào 0x0000_1018
-- [x] Switch: Read từ 0x0000_1000 trả về i_io_sw
-- [x] HEX displays: Set về 0 (không dùng)
+- [x] LEDR: Update khi write vào 0x1000_0000 - 0x1000_0FFF
+- [x] LEDG: Update khi write vào 0x1000_1000 - 0x1000_1FFF
+- [x] HEX0-3: Update khi write vào 0x1000_2000 - 0x1000_2FFF (hỗ trợ byte/halfword/word)
+- [x] HEX4-7: Update khi write vào 0x1000_3000 - 0x1000_3FFF (hỗ trợ byte/halfword/word)
+- [x] LCD: Update khi write vào 0x1000_4000 - 0x1000_4FFF
+- [x] Switch: Read từ 0x1001_0000 - 0x1001_0FFF trả về i_io_sw
 
 ## ✅ KIỂM TRA SYNTAX
 - [x] Không có lỗi syntax

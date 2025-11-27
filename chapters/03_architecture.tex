@@ -14,10 +14,10 @@ The Program Counter tracks the current instruction address and updates based on 
     \item \textbf{Sequential}: PC = PC + 4 (default for non-branch/jump instructions)
     \item \textbf{Branch}: PC = PC + immediate (if branch condition is true)
     \item \textbf{Jump}: PC = PC + immediate (JAL) or rs1 + immediate (JALR)
-    \item \textbf{Reset}: PC = 0x0000\_0000
+    \item \textbf{Reset}: When \texttt{i\_reset} is LOW (active), PC is reset to 0x0000\_0000
 \end{itemize}
 
-The PC register updates on the rising edge of the clock when reset is not active.
+The PC register updates on the rising edge of the clock. When \texttt{i\_reset} is LOW, PC is synchronously reset to 0x0000\_0000. When \texttt{i\_reset} is HIGH (not reset), PC updates to \texttt{pc\_next}.
 
 \subsection{Instruction Memory (IMEM)}
 
@@ -27,7 +27,7 @@ The instruction memory is implemented as a 16KB read-only array:
     \item \textbf{Implementation}: Logic element array (16,384 bytes)
     \item \textbf{Addressing}: Byte-addressable, but fetches 32-bit words
     \item \textbf{Access}: Combinational read (asynchronous)
-    \item \textbf{Initialization}: Pre-loaded from \texttt{isa.mem} file
+    \item \textbf{Initialization}: Pre-loaded from \texttt{isa.mem} file (with fallback to \texttt{isa\_1b.hex} for local testing)
 \end{itemize}
 
 \subsection{Instruction Decode}
@@ -211,8 +211,8 @@ For each instruction type, the control unit sets:
 
 \subsubsection{J-type Instructions}
 \begin{itemize}
-    \item \textbf{JAL}: Jump to PC + immediate, save PC + 4 to rd
-    \item \textbf{JALR}: Jump to rs1 + immediate, save PC + 4 to rd
+    \item \textbf{JAL}: Jump target is PC + immediate (computed in datapath), save PC + 4 to rd
+    \item \textbf{JALR}: Jump target is rs1\_data + immediate (computed directly from register file output, not through ALU result), save PC + 4 to rd. The control unit sets ALU sources for other purposes, but the actual jump address uses \texttt{rs1\_data + imm} directly.
 \end{itemize}
 
 \section{Timing}

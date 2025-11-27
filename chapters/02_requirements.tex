@@ -36,7 +36,7 @@ The processor module (\texttt{single\_cycle.sv}) must provide the following inte
     \item \textbf{Size}: 16KB (16384 bytes) to support testbench requirements
     \item \textbf{Type}: Read-only memory (ROM) implemented as logic elements
     \item \textbf{Address Width}: At least 14 bits (supporting addresses up to 0x0000\_7FFF)
-    \item \textbf{Initialization}: Loaded from \texttt{isa.mem} file using \texttt{\$readmemh}
+    \item \textbf{Initialization}: Loaded from \texttt{isa.mem} file using \texttt{\$readmemh} (with fallback to \texttt{isa\_1b.hex} if \texttt{isa.mem} is not found)
     \item \textbf{Access}: Asynchronous read (combinational)
 \end{itemize}
 
