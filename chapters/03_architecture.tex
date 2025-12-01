@@ -2,7 +2,12 @@
 
 \section{Overview}
 
-The single-cycle RISC-V processor follows a traditional Harvard architecture with separate instruction and data memories. The complete datapath includes all major components: Program Counter, Instruction Memory, Register File, ALU, Data Memory, and Control Unit.
+The project progresses from a \textbf{single-cycle} RV32I processor (Milestone~2) to a
+\textbf{five-stage pipelined} RV32I processor (Milestone~3). The single-cycle core serves
+as the functional baseline, while the pipelined core reuses the same ISA and I/O conventions
+but introduces pipeline stages, hazard detection, and forwarding to improve throughput.
+
+Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined architecture.
 
 \section{Datapath Components}
 
