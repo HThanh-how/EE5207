@@ -2,15 +2,23 @@
 
 \section{Module Structure}
 
-The processor is implemented as a modular SystemVerilog design with the following modules:
-
+The design is implemented as a modular SystemVerilog project. Two top-level cores are provided:
 \begin{itemize}
-    \item \texttt{single\_cycle.sv}: Top-level module integrating all components
-    \item \texttt{register\_file.sv}: 32x32-bit register file
-    \item \texttt{alu.sv}: Arithmetic Logic Unit
-    \item \texttt{control\_unit.sv}: Instruction decoder and control signal generator
-    \item \texttt{imem.sv}: Instruction memory
-    \item \texttt{dmem.sv}: Data memory
+    \item \texttt{single\_cycle.sv}: Baseline single-cycle RV32I core used in Milestone~2.
+    \item \texttt{pipelined.sv}: Final five-stage pipelined RV32I core used in Milestone~3.
+\end{itemize}
+
+The common building blocks reused by both cores are:
+\begin{itemize}
+    \item \texttt{register\_file.sv}: 32x32-bit register file.
+    \item \texttt{alu.sv}: Arithmetic Logic Unit.
+    \item \texttt{control\_unit.sv}: Instruction decoder and control signal generator.
+\end{itemize}
+
+For the pipelined implementation, the memory system is upgraded to synchronous 64~KiB models as required in Milestone~3:
+\begin{itemize}
+    \item \texttt{imem\_sync.sv}: 64~KiB synchronous instruction memory preloaded from \texttt{isa.mem}.
+    \item \texttt{dmem\_sync.sv}: 64~KiB synchronous data memory and I/O interface.
 \end{itemize}
 
 \section{Register File Implementation}
