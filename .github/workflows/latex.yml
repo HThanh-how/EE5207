@@ -61,15 +61,75 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate changelog from commit history
+        run: |
+          set -euo pipefail
+          
+          # Tạo file changelog với format đẹp giống GitHub Releases
+          {
+            echo "## Changelog ($(date -u +"%Y-%m-%d %H:%M:%S") UTC)"
+            echo ""
+            
+            # Tìm tag/release gần nhất
+            LAST_TAG=""
+            if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+              LAST_TAG=$(git describe --tags --abbrev=0)
+              echo "Found last tag: ${LAST_TAG}"
+            else
+              echo "No tags found, will include all commits"
+            fi
+            
+            # Lấy commit từ tag gần nhất đến HEAD (nếu có tag)
+            # Nếu không có tag, lấy tất cả commit
+            if [ -n "$LAST_TAG" ]; then
+              COMMIT_RANGE="${LAST_TAG}..HEAD"
+              echo "Getting commits from ${LAST_TAG} to HEAD"
+              
+              # Kiểm tra xem có commit nào không
+              if git log "${COMMIT_RANGE}" --oneline 2>/dev/null | head -1 >/dev/null 2>&1; then
+                git log "${COMMIT_RANGE}" --no-merges --pretty=format:"*   **%s** (%h)"
+              else
+                echo "- No new commits since ${LAST_TAG}"
+              fi
+            else
+              echo "### All Commits (no previous release found)"
+              echo ""
+              git log --no-merges --pretty=format:"*   **%s** (%h)"
+            fi
+            
+          } > release_notes.md
+          
+          # Fallback cuối cùng nếu file rỗng
+          if [ ! -s release_notes.md ] || ! grep -q "^\*" release_notes.md; then
+            {
+              echo "## Changelog ($(date -u +"%Y-%m-%d %H:%M:%S") UTC)"
+              echo ""
+              echo "### Recent Changes"
+              echo ""
+              git log -n 50 --no-merges --pretty=format:"*   **%s** (%h)" 2>/dev/null || echo "- No commits found."
+            } > release_notes.md
+          fi
+          
+          # Hiển thị preview
+          echo "=== Changelog Preview (first 50 lines) ==="
+          head -50 release_notes.md
+          echo ""
+          echo "=== Total lines in changelog ==="
+          wc -l release_notes.md || echo "0"
+      
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: milestone2-report-pdf
           path: dist
+      
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Automated Build ${{ github.run_number }}
-          generate_release_notes: true
+          body_path: release_notes.md
           files: dist/Milestone2_Report.pdf
