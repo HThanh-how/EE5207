@@ -104,7 +104,7 @@ The testbench monitors key signals:
 \subsection{Test Execution Flow}
 
 \begin{enumerate}
-    \item Testbench loads \texttt{isa.mem} into instruction memory
+    \item Testbench loads \texttt{isa.mem} into instruction memory (or \texttt{isa\_1b.hex} as fallback)
     \item Reset is applied, processor starts at PC = 0x0000\_0000
     \item Processor executes instructions sequentially
     \item Scoreboard monitors PC and LEDR outputs

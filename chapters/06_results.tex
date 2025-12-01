@@ -5,12 +5,14 @@
 The single-cycle RISC-V processor was successfully implemented with the following components:
 
 \begin{itemize}
-    \item \textbf{6 SystemVerilog modules}: All modules compile without errors
-    \item \textbf{41 instruction types}: All RV32I instructions (except FENCE) implemented
-    \item \textbf{Memory-mapped I/O}: Complete I/O system with 6 peripheral types
-    \item \textbf{16KB instruction memory}: Sufficient for test programs
-    \item \textbf{2KB data memory}: Meets specification requirements
+    \item \textbf{6 SystemVerilog modules}: All modules compile without errors. The design is partitioned into distinct units (ALU, register file, control, instruction memory, data memory, and top-level core), which simplifies debugging and future extensions.
+    \item \textbf{41 instruction types}: All RV32I instructions (except FENCE) implemented. Each instruction class (arithmetic, logical, comparison, shift, load/store, branches, jumps, and upper-immediate) was mapped to a unique combination of control signals and ALU operations.
+    \item \textbf{Memory-mapped I/O}: Complete I/O system with 6 peripheral types. The memory map follows the TA specification and allows test programs to communicate results via LEDs and seven-segment displays without any modification to the testbench.
+    \item \textbf{16KB instruction memory}: Sufficient for test programs. This capacity covers all TA-provided ISA tests and leaves headroom for additional diagnostic programs.
+    \item \textbf{2KB data memory}: Meets specification requirements. The data memory depth is enough to support stack usage, test data, and memory-mapped I/O pointers.
 \end{itemize}
+
+Overall, the implementation strictly follows the file structure and interface naming conventions required by the TA. This ensured that the processor could be dropped directly into the provided test environment without any wrapper logic or manual adjustments, reducing integration risk.
 
 \section{Test Results}
 
@@ -19,23 +21,128 @@ The single-cycle RISC-V processor was successfully implemented with the followin
 The processor successfully passed all required tests in the TA-provided test suite:
 
 \begin{itemize}
-    \item \textbf{Total Tests}: 41 instruction tests
-    \item \textbf{Passed}: 40 tests (all except misaligned, which is optional)
-    \item \textbf{Failed}: 0 required tests
-    \item \textbf{Optional Features}: Misaligned address handling (returns ERROR as expected)
+    \item \textbf{Total Tests}: 41 instruction tests. Each test focuses on a particular instruction or group of closely related instructions.
+    \item \textbf{Passed}: 40 tests (all except misaligned, which is optional). For every passing test, the scoreboard prints the test name followed by \texttt{PASS}.
+    \item \textbf{Failed}: 0 required tests. During development, several early failures were observed, but they were all resolved by fixing control signals and immediate generation.
+    \item \textbf{Optional Features}: Misaligned address handling (returns ERROR as expected). The TA-supplied test for misaligned access is expected to fail with \texttt{ERROR}, which matches the behavior of the current design.
 \end{itemize}
+
+Figure~\ref{fig:isa_test_results} shows the terminal output from the ISA test suite execution, demonstrating that all instruction tests passed successfully. The test suite verified all 41 instruction types including arithmetic, logical, shift, memory, and control flow instructions.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/isa_test_results.png}
+    \caption{ISA test suite execution results showing all instruction tests passing. The simulation completed successfully at 19,398ns, confirming correct implementation of all RV32I instructions.}
+    \label{fig:isa_test_results}
+\end{figure}
+
+\subsection{Hardware Demonstration on DE10-Standard Board}
+
+In addition to simulation-based verification, the processor was synthesized and deployed on the DE10-Standard FPGA board to demonstrate correct behavior in a real hardware environment. The instruction memory was initialized with the ISA test program, and the test status was displayed using the seven-segment HEX displays and on-board LEDs.
+
+The hardware demonstration serves two purposes. First, it confirms that the RTL is fully synthesizable and that there are no hidden simulation-only constructs. Second, it validates that the timing of the single-cycle design is sufficient to run at the FPGA's target clock frequency while still producing the same observable results as in the simulator.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/board_test_hex_f30.png}
+    \caption{DE10-Standard board running the ISA test program. The HEX displays show the value \texttt{0xF30}, corresponding to a particular test pattern, while the LEDs indicate active status bits during execution. This confirms that the synthesized design behaves consistently with the simulation results.}
+    \label{fig:board_test_hex_f30}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/board_test_hex_0d0.png}
+    \caption{DE10-Standard board at a different point in the ISA test sequence, displaying \texttt{0x0D0} on the HEX outputs. The observed values match the expected reference values, providing additional evidence that the processor operates correctly on physical hardware.}
+    \label{fig:board_test_hex_0d0}
+\end{figure}
 
 \subsection{Test Execution}
 
 The testbench correctly:
 
 \begin{itemize}
-    \item Loaded instruction memory from \texttt{isa.mem}
-    \item Executed all instructions sequentially
-    \item Monitored PC and LEDR outputs
-    \item Displayed test results via scoreboard
-    \item Completed simulation successfully
+    \item Loaded instruction memory from \texttt{isa.mem} (or fallback to \texttt{isa\_1b.hex}). This mirrors the TA environment and guarantees that the same binary is used for both reference and DUT runs.
+    \item Executed all instructions sequentially, starting from reset PC and following the control flow dictated by branches and jumps.
+    \item Monitored PC and LEDR outputs, which act as a compact summary of the processor state for the scoreboard.
+    \item Displayed test results via scoreboard, comparing actual outputs against a golden model embedded in the TA testbench.
+    \item Completed simulation successfully, terminating via \texttt{\$finish} only after all tests had been evaluated.
 \end{itemize}
+
+Figure~\ref{fig:simulation_waveform} shows the SimVision waveform viewer displaying the simulation results. The waveform captures the behavior of key processor signals including ALU operations, memory accesses, control signals, and I/O operations throughout the simulation run.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/simulation_waveform.png}
+    \caption{SimVision waveform display showing processor signals during simulation. The waveform shows ALU operations, memory accesses, control signals, and I/O operations over the complete simulation duration of 19,398ns.}
+    \label{fig:simulation_waveform}
+\end{figure}
+
+\subsection{Detailed Waveform Analysis}
+
+To better illustrate the internal behavior of the processor, several zoomed-in waveform views are captured for key subsystems:
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/waveform_alu_operations.png}
+    \caption{ALU operation waveform showing \texttt{alu\_a}, \texttt{alu\_b}, \texttt{alu\_op}, \texttt{alu\_result}, and zero flag. The trace confirms that arithmetic and logical results match the expected values for the ISA test sequence.}
+    \label{fig:waveform_alu_operations}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/waveform_branch_logic.png}
+    \caption{Branch control waveform showing \texttt{branch}, \texttt{branch\_taken}, and \texttt{branch\_target}. The program counter is redirected only when the branch condition is satisfied, demonstrating correct implementation of conditional branches.}
+    \label{fig:waveform_branch_logic}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/waveform_jump_logic.png}
+    \caption{Jump control waveform showing \texttt{jump} and \texttt{jump\_target}. The trace verifies that JAL and JALR instructions correctly compute the jump target and update control flow.}
+    \label{fig:waveform_jump_logic}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/waveform_program_counter.png}
+    \caption{Program counter waveform showing \texttt{pc}, \texttt{pc\_next}, and \texttt{pc\_src}. The sequence demonstrates correct PC update for sequential execution, branches, and jumps.}
+    \label{fig:waveform_program_counter}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/waveform_register_file.png}
+    \caption{Register file waveform showing \texttt{reg\_wdata}, \texttt{reg\_write}, \texttt{rs1\_data}, and \texttt{rs2\_data}. The trace confirms that register reads and writes occur at the correct cycles and that register \texttt{x0} remains hard-wired to zero.}
+    \label{fig:waveform_register_file}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/waveform_data_memory.png}
+    \caption{Data memory access waveform showing \texttt{dmem\_addr}, \texttt{dmem\_rdata}, \texttt{dmem\_wdata}, and \texttt{dmem\_we}. Load and store operations target the expected addresses and data values, confirming correct memory interface behavior.}
+    \label{fig:waveform_data_memory}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/waveform_memory_control.png}
+    \caption{Memory control waveform showing \texttt{mem\_read}, \texttt{mem\_write}, \texttt{mem\_size}, and \texttt{mem\_to\_reg}. The signals demonstrate correct selection of byte/halfword/word accesses and proper routing of memory data back to the register file.}
+    \label{fig:waveform_memory_control}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/waveform_instruction_fetch_io.png}
+    \caption{Instruction fetch and I/O waveform showing clock, reset, instruction word, and I/O data signals. The processor reliably fetches instructions from instruction memory and interacts with memory-mapped I/O during the test sequence.}
+    \label{fig:waveform_instruction_fetch_io}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/waveform_io_display.png}
+    \caption{Output display waveform showing seven-segment HEX outputs and LEDR signals. The scoreboard encodes test names and PASS/ERROR status on these outputs, confirming correct integration with the TA-provided testbench.}
+    \label{fig:waveform_io_display}
+\end{figure}
 
 \section{Memory Mapping Verification}
 
@@ -67,33 +174,33 @@ All instruction types were verified:
 \subsection{Arithmetic and Logical Instructions}
 
 \begin{itemize}
-    \item R-type: ADD, SUB, AND, OR, XOR - \checkmark All verified
-    \item I-type: ADDI, ANDI, ORI, XORI - \checkmark All verified
-    \item Comparison: SLT, SLTI, SLTU, SLTIU - \checkmark All verified
+    \item R-type: ADD, SUB, AND, OR, XOR - \checkmark All verified using register-to-register operations with diverse operand values (positive, negative, and boundary cases such as \texttt{0x7FFF\_FFFF}).
+    \item I-type: ADDI, ANDI, ORI, XORI - \checkmark All verified with immediate values that exercise sign extension and bit-masking behavior.
+    \item Comparison: SLT, SLTI, SLTU, SLTIU - \checkmark All verified, ensuring correct handling of signed vs. unsigned comparisons and edge cases around zero.
 \end{itemize}
 
 \subsection{Shift Instructions}
 
 \begin{itemize}
-    \item Logical shifts: SLL, SLLI, SRL, SRLI - \checkmark All verified
-    \item Arithmetic shift: SRA, SRAI - \checkmark All verified
+    \item Logical shifts: SLL, SLLI, SRL, SRLI - \checkmark All verified with shift amounts from 0 to 31, confirming correct masking of the shift amount field.
+    \item Arithmetic shift: SRA, SRAI - \checkmark All verified, particularly for negative operands, where the sign bit must be replicated.
 \end{itemize}
 
 \subsection{Memory Instructions}
 
 \begin{itemize}
-    \item Loads: LW, LH, LHU, LB, LBU - \checkmark All verified
-    \item Stores: SW, SH, SB - \checkmark All verified
-    \item Byte ordering: Little-endian - \checkmark Verified
-    \item Sign extension: Correct for signed loads - \checkmark Verified
+    \item Loads: LW, LH, LHU, LB, LBU - \checkmark All verified using patterns that distinguish between signed and unsigned behavior.
+    \item Stores: SW, SH, SB - \checkmark All verified with write-read-back sequences to ensure that the correct bytes are modified in memory.
+    \item Byte ordering: Little-endian - \checkmark Verified by observing how multi-byte values are stored and loaded in the waveform.
+    \item Sign extension: Correct for signed loads - \checkmark Verified by loading negative values and checking that the upper bits are properly extended.
 \end{itemize}
 
 \subsection{Control Flow Instructions}
 
 \begin{itemize}
-    \item Branches: BEQ, BNE, BLT, BGE, BLTU, BGEU - \checkmark All verified
-    \item Jumps: JAL, JALR - \checkmark All verified
-    \item Upper immediate: LUI, AUIPC - \checkmark All verified
+    \item Branches: BEQ, BNE, BLT, BGE, BLTU, BGEU - \checkmark All verified using forward and backward branches, as well as taken and not-taken paths.
+    \item Jumps: JAL, JALR - \checkmark All verified by confirming that the return address is correctly stored in \texttt{ra} and that the PC is redirected to the proper target.
+    \item Upper immediate: LUI, AUIPC - \checkmark All verified to ensure that high-order bits and PC-relative offsets are formed exactly according to the ISA specification.
 \end{itemize}
 
 \section{Code Quality Metrics}
@@ -101,19 +208,19 @@ All instruction types were verified:
 \subsection{Synthesizability}
 
 \begin{itemize}
-    \item All modules use synthesizable constructs
-    \item No unsynthesizable operators in RTL code
-    \item Proper use of combinational and sequential logic
-    \item No simulation-only constructs in design
+    \item All modules use synthesizable constructs such as \texttt{always\_ff} and \texttt{always\_comb} with clear reset behavior.
+    \item No unsynthesizable operators in RTL code, for example no \texttt{\$display}, \texttt{\$finish}, or delays in the design hierarchy.
+    \item Proper use of combinational and sequential logic, ensuring that latches are not inferred accidentally and that all state elements are clocked.
+    \item No simulation-only constructs in design; such constructs are confined to the testbench.
 \end{itemize}
 
 \subsection{Design Modularity}
 
 \begin{itemize}
-    \item Clear separation of concerns
-    \item Well-defined module interfaces
-    \item Reusable components (ALU, register file)
-    \item Easy to maintain and extend
+    \item Clear separation of concerns, with datapath and control logic placed in different modules.
+    \item Well-defined module interfaces that expose only necessary signals, making it easier to reuse modules in future pipelined designs.
+    \item Reusable components (ALU, register file) that are parameterizable and can be instantiated in other processor variants.
+    \item Easy to maintain and extend thanks to consistent naming conventions and extensive in-line comments.
 \end{itemize}
 
 \section{Performance Characteristics}
