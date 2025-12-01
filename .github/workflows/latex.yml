@@ -68,25 +68,25 @@ jobs:
         run: |
           set -euo pipefail
           
+          # Tìm tag/release gần nhất (debug info ra stderr, không vào file)
+          LAST_TAG=""
+          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            LAST_TAG=$(git describe --tags --abbrev=0)
+            echo "Found last tag: ${LAST_TAG}" >&2
+          else
+            echo "No tags found, will include all commits" >&2
+          fi
+          
           # Tạo file changelog với format đẹp giống GitHub Releases
           {
             echo "## Changelog ($(date -u +"%Y-%m-%d %H:%M:%S") UTC)"
             echo ""
             
-            # Tìm tag/release gần nhất
-            LAST_TAG=""
-            if git describe --tags --abbrev=0 >/dev/null 2>&1; then
-              LAST_TAG=$(git describe --tags --abbrev=0)
-              echo "Found last tag: ${LAST_TAG}"
-            else
-              echo "No tags found, will include all commits"
-            fi
-            
             # Lấy commit từ tag gần nhất đến HEAD (nếu có tag)
             # Nếu không có tag, lấy tất cả commit
             if [ -n "$LAST_TAG" ]; then
               COMMIT_RANGE="${LAST_TAG}..HEAD"
-              echo "Getting commits from ${LAST_TAG} to HEAD"
+              echo "Getting commits from ${LAST_TAG} to HEAD" >&2
               
               # Kiểm tra xem có commit nào không
               if git log "${COMMIT_RANGE}" --oneline 2>/dev/null | head -1 >/dev/null 2>&1; then
