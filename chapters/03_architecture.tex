@@ -9,6 +9,13 @@ but introduces pipeline stages, hazard detection, and forwarding to improve thro
 
 Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined architecture.
 
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{docs/milestone-3/figure1.png}
+    \caption{Pipelined processor with hazard detection, forwarding, and branch signals (\texttt{o\_ctrl}, \texttt{o\_mispred}).}
+    \label{fig:pipeline_overview}
+\end{figure}
+
 \section{Datapath Components}
 
 \subsection{Program Counter (PC)}
@@ -47,6 +54,36 @@ The instruction is decoded into the following fields:
     \item \textbf{rs2}: bits [24:20] - Source register 2
     \item \textbf{funct7}: bits [31:25] - Additional function code (for R-type)
 \end{itemize}
+
+\subsection{Branch Prediction and BTB}
+
+The pipelined core adds a two-bit dynamic branch predictor with a 256-entry BTB. Lookup
+occurs in IF; update happens in EX when the branch outcome is known. The default prediction
+is not-taken; entries transition between four states (00--11) based on correctness.
+
+\begin{lstlisting}[language=Verilog, caption=BTB lookup and prediction (pipelined.sv)]
+// Index and tag from PC
+assign btb_index_if = pc[BTB_INDEX_WIDTH+1:2];
+assign btb_tag_if   = pc[31:BTB_INDEX_WIDTH+2];
+
+always_comb begin
+    btb_hit       = 1'b0;
+    predicted_pc  = pc_plus4; // default: not-taken
+    predict_taken = 1'b0;
+
+    if (btb_tag[btb_index_if] == btb_tag_if) begin
+        if (btb_state[btb_index_if] >= 2'b10) begin
+            btb_hit       = 1'b1;
+            predicted_pc  = btb_target[btb_index_if];
+            predict_taken = 1'b1;
+        end
+    end
+end
+\end{lstlisting}
+
+On misprediction (detected in EX), IF/ID/EX are flushed and PC is corrected to the actual
+target. The signal \texttt{o\_mispred} counts mispredictions in WB; \texttt{o\_ctrl} counts control
+transfers in WB for IPC and mispred rate.
 
 \subsection{Immediate Generation}
 
