@@ -114,6 +114,89 @@ Both instruction and data memories use synchronous read/write operations compati
     \item \textbf{Performance}: BRAM provides higher frequency and lower resource usage compared to logic-based memory
 \end{itemize}
 
+\section{Milestone 3 Specifics}
+
+\subsection{Memory Map (64~KiB + I/O)}
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+Base & Top & Mapping \\
+\midrule
+0x0000\_0000 & 0x0000\_FFFF & RAM / IMEM / DMEM (64 KiB) \\
+0x1000\_0000 & 0x1000\_0FFF & RED LEDs \\
+0x1000\_1000 & 0x1000\_1FFF & GREEN LEDs \\
+0x1000\_2000 & 0x1000\_2FFF & HEX0-3 \\
+0x1000\_3000 & 0x1000\_3FFF & HEX4-7 \\
+0x1000\_4000 & 0x1000\_4FFF & LCD \\
+0x1001\_0000 & 0x1001\_0FFF & Switches \\
+\bottomrule
+\end{tabular}
+\caption{Memory-mapped I/O theo spec Milestone 3.}
+\end{table}
+
+\subsection{Synchronous BRAM-Compatible Memories}
+\begin{lstlisting}[language=Verilog, caption=IMEM synchronous read (imem_sync.sv)]
+always_ff @(posedge clk) begin
+  if (enable) begin
+    if (byte_addr+3 < MEM_SIZE)
+      rdata <= {mem[byte_addr+3], mem[byte_addr+2],
+                mem[byte_addr+1], mem[byte_addr]};
+    else
+      rdata <= 32'b0;
+  end
+end
+\end{lstlisting}
+
+\subsection{Forwarding Unit}
+\begin{lstlisting}[language=Verilog, caption=Forwarding priority MEM > WB]
+if (mem_reg_write && mem_enable && mem_rd_addr != 5'b0) begin
+  if (mem_rd_addr == ex_rs1_addr) forward_a = 2'b10;
+  if (mem_rd_addr == ex_rs2_addr) forward_b = 2'b10;
+end
+if (wb_reg_write && wb_enable && wb_rd_addr != 5'b0) begin
+  if (forward_a == 2'b00 && wb_rd_addr == ex_rs1_addr) forward_a = 2'b01;
+  if (forward_b == 2'b00 && wb_rd_addr == ex_rs2_addr) forward_b = 2'b01;
+end
+\end{lstlisting}
+
+\subsection{Hazard Detection (Load-Use Stall)}
+\begin{lstlisting}[language=Verilog, caption=Load-use stall insertion]
+if (ex_is_load && ex_enable && ex_rd_addr != 5'b0) begin
+  if ((id_rs1_addr == ex_rd_addr && id_reg_write) ||
+      (id_rs2_addr == ex_rd_addr && (id_mem_write || id_branch))) begin
+    stall_if = 1'b1; stall_id = 1'b1; flush_ex = 1'b1;
+  end
+end
+\end{lstlisting}
+
+\subsection{Branch Prediction (Two-bit + BTB)}
+\begin{lstlisting}[language=Verilog, caption=BTB update and predictor FSM]
+// Update BTB entry
+btb_tag[btb_index_ex]    <= btb_tag_ex;
+btb_target[btb_index_ex] <= ex_branch ? ex_branch_target : ex_jump_target;
+
+// Two-bit predictor transitions
+case (btb_state[btb_index_ex])
+  2'b00: if (ex_branch_taken) btb_state[btb_index_ex] <= 2'b01;
+  2'b01: btb_state[btb_index_ex] <= ex_branch_taken ? 2'b11 : 2'b00;
+  2'b10: btb_state[btb_index_ex] <= ex_branch_taken ? 2'b11 : 2'b01;
+  2'b11: if (~ex_branch_taken) btb_state[btb_index_ex] <= 2'b10;
+endcase
+\end{lstlisting}
+
+\subsection{Misprediction Handling}
+\begin{lstlisting}[language=Verilog, caption=Mispredict flush and PC correction]
+if (ex_is_ctrl && ex_enable) begin
+  logic actual_taken  = ex_branch ? ex_branch_taken : 1'b1;
+  logic [31:0] actual_target = ex_branch ? ex_branch_target : ex_jump_target;
+  if (ex_predicted_taken != actual_taken) begin
+    flush_if = 1'b1; flush_id = 1'b1; flush_ex = 1'b1;
+    pc_next  = actual_target;
+  end
+end
+\end{lstlisting}
+
 \section{Register File Implementation}
 
 The register file implements 32 registers with asynchronous read and synchronous write:

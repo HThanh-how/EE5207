@@ -2,34 +2,23 @@
 
 \section{Implementation Summary}
 
-Two RISC-V processor implementations were successfully completed:
-
-\subsection{Milestone 2: Single-Cycle Processor}
-
-The single-cycle RISC-V processor was successfully implemented with the following components:
-
-\begin{itemize}
-    \item \textbf{6 SystemVerilog modules}: All modules compile without errors. The design is partitioned into distinct units (ALU, register file, control, instruction memory, data memory, and top-level core), which simplifies debugging and future extensions.
-    \item \textbf{41 instruction types}: All RV32I instructions (except FENCE) implemented. Each instruction class (arithmetic, logical, comparison, shift, load/store, branches, jumps, and upper-immediate) was mapped to a unique combination of control signals and ALU operations.
-    \item \textbf{Memory-mapped I/O}: Complete I/O system with 6 peripheral types. The memory map follows the TA specification and allows test programs to communicate results via LEDs and seven-segment displays without any modification to the testbench.
-    \item \textbf{16KB instruction memory}: Sufficient for test programs. This capacity covers all TA-provided ISA tests and leaves headroom for additional diagnostic programs.
-    \item \textbf{2KB data memory}: Meets specification requirements. The data memory depth is enough to support stack usage, test data, and memory-mapped I/O pointers.
-\end{itemize}
+\textbf{Trọng tâm Milestone 3 (pipeline, forwarding, branch prediction, BRAM)}; Milestone 2 chỉ là baseline đối chiếu.
 
 \subsection{Milestone 3: Pipelined Processor}
-
-The pipelined RISC-V processor extends the single-cycle design with advanced features:
-
 \begin{itemize}
-    \item \textbf{Five-stage pipeline}: IF, ID, EX, MEM, WB stages with proper pipeline registers and control
-    \item \textbf{Forwarding Unit}: Resolves data hazards by forwarding from MEM and WB stages to EX stage
-    \item \textbf{Hazard Detection}: Detects and handles load-use hazards and control hazards
-    \item \textbf{Two-bit Branch Predictor}: Dynamic branch prediction with 256-entry Branch Target Buffer (BTB)
-    \item \textbf{BRAM-compatible memory}: 64~KiB synchronous instruction and data memory compatible with FPGA BRAM
-    \item \textbf{Performance monitoring}: Debug signals (\texttt{o\_insn\_vld}, \texttt{o\_ctrl}, \texttt{o\_mispred}) for IPC and misprediction rate analysis
+    \item Five-stage pipeline với enable/flush cho IF/ID, ID/EX, EX/MEM, MEM/WB
+    \item Forwarding Unit: ưu tiên MEM > WB, giảm stall
+    \item Hazard Detection: load-use stall 1 cycle, control flush khi mispredict
+    \item Branch Prediction: Two-bit predictor + BTB 256 entries (lookup IF, update EX)
+    \item BRAM-compatible memory: IMEM/DMEM synchronous 64~KiB (enable-gated)
+    \item Debug: \texttt{o\_insn\_vld}, \texttt{o\_ctrl}, \texttt{o\_mispred} phục vụ IPC/mispred rate
 \end{itemize}
 
-Overall, both implementations strictly follow the file structure and interface naming conventions required by the TA. This ensured that the processors could be dropped directly into the provided test environment without any wrapper logic or manual adjustments, reducing integration risk.
+\subsection{Milestone 2: Single-Cycle (Baseline đối chiếu)}
+\begin{itemize}
+    \item 6 module cơ bản, 41 lệnh RV32I, memory-mapped I/O đầy đủ
+    \item Dùng làm baseline để so sánh IPC/mispred với pipeline
+\end{itemize}
 
 \section{Test Results}
 
@@ -282,6 +271,29 @@ Expected performance improvements over single-cycle:
     \item \textbf{Misprediction Rate}: Typically 10--30\% depending on branch patterns (vs. 70\% for static not-taken prediction)
     \item \textbf{Frequency}: Higher maximum frequency due to shorter critical path in each pipeline stage
 \end{itemize}
+
+\subsection{Scoreboard Metrics}
+Scoreboard (testbench) đếm:
+\begin{itemize}
+    \item \texttt{num\_cycle}, \texttt{num\_insn} (từ \texttt{o\_insn\_vld})
+    \item \texttt{num\_ctrl} (từ \texttt{o\_ctrl}), \texttt{num\_mispred} (từ \texttt{o\_mispred})
+    \item IPC = \texttt{num\_insn / num\_cycle}; Mispred Rate = \texttt{num\_mispred / num\_ctrl}
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\caption{So sánh SC vs Pipeline (kỳ vọng)}
+\begin{tabular}{lcc}
+\toprule
+Metric & Single-cycle & Pipeline (fwd + 2-bit) \\
+\midrule
+IPC (ISA test) & 1.0 (chu kỳ dài) & 0.7--0.9 \\
+Mispred Rate & $\sim$70\% (always NT) & 10--30\% (two-bit) \\
+Stall (load-use) & N/A & 1 chu kỳ/load-use \\
+Freq (relative) & Thấp & Cao (stage ngắn + BRAM) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Compatibility Verification}
 

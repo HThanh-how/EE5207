@@ -16,6 +16,43 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
     \label{fig:pipeline_overview}
 \end{figure}
 
+\section{Milestone 3 Pipelined Overview}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[
+        stage/.style={rectangle, draw, rounded corners, minimum width=2.0cm, minimum height=1.0cm, fill=blue!8},
+        reg/.style={rectangle, draw, minimum width=1.5cm, minimum height=0.8cm, fill=orange!10},
+        arrow/.style={->, thick}
+    ]
+        \node[stage] (if) {IF};
+        \node[reg, right=0.9cm of if] (ifid) {IF/ID};
+        \node[stage, right=0.9cm of ifid] (id) {ID};
+        \node[reg, right=0.9cm of id] (idex) {ID/EX};
+        \node[stage, right=0.9cm of idex] (ex) {EX};
+        \node[reg, right=0.9cm of ex] (exmem) {EX/MEM};
+        \node[stage, right=0.9cm of exmem] (mem) {MEM};
+        \node[reg, right=0.9cm of mem] (memwb) {MEM/WB};
+        \node[stage, right=0.9cm of memwb] (wb) {WB};
+
+        \draw[arrow] (if) -- (ifid);
+        \draw[arrow] (ifid) -- (id);
+        \draw[arrow] (id) -- (idex);
+        \draw[arrow] (idex) -- (ex);
+        \draw[arrow] (ex) -- (exmem);
+        \draw[arrow] (exmem) -- (mem);
+        \draw[arrow] (mem) -- (memwb);
+        \draw[arrow] (memwb) -- (wb);
+
+        \draw[arrow, bend right=25] (exmem) to node[below]{fwd} (idex);
+        \draw[arrow, bend right=35] (memwb) to node[below]{fwd} (idex);
+        \draw[arrow, bend left=30, red] (ex) to node[above]{flush/pc\_corr} (if);
+        \draw[arrow, bend left=35, dashed] (if) to node[above]{pred PC} (ex);
+    \end{tikzpicture}
+    \caption{Luồng 5 stage, forwarding (fwd), flush khi mispredict, PC correction.}
+    \label{fig:pipeline_tikz}
+\end{figure}
+
 \section{Datapath Components}
 
 \subsection{Program Counter (PC)}
@@ -84,6 +121,68 @@ end
 On misprediction (detected in EX), IF/ID/EX are flushed and PC is corrected to the actual
 target. The signal \texttt{o\_mispred} counts mispredictions in WB; \texttt{o\_ctrl} counts control
 transfers in WB for IPC and mispred rate.
+
+\subsection{Pipeline Registers (Enable/Flush)}
+
+\begin{lstlisting}[language=Verilog, caption=Pipeline registers with enable/flush]
+// IF/ID
+always_ff @(posedge i_clk) begin
+  if (~i_reset || if_flush) begin
+    id_pc <= '0; id_instruction <= '0; id_enable <= 1'b0;
+  end else if (if_enable && ~stall_id) begin
+    id_pc <= pc; id_instruction <= if_instruction; id_enable <= 1'b1;
+  end
+end
+
+// ID/EX
+always_ff @(posedge i_clk) begin
+  if (~i_reset || flush_id) begin
+    ex_enable <= 1'b0; ex_predicted_taken <= 1'b0;
+  end else if (~stall_ex && id_enable) begin
+    ex_enable <= id_enable;
+    ex_predicted_taken <= (id_branch || id_jump) ? predict_taken : 1'b0;
+  end
+end
+\end{lstlisting}
+
+\subsection{Forwarding \& Hazard Control}
+
+\begin{lstlisting}[language=Verilog, caption=Forwarding and load-use stall]
+// Forwarding priority: MEM > WB
+if (mem_reg_write && mem_enable && mem_rd_addr != 5'b0) begin
+  if (mem_rd_addr == ex_rs1_addr) forward_a = 2'b10;
+  if (mem_rd_addr == ex_rs2_addr) forward_b = 2'b10;
+end
+if (wb_reg_write && wb_enable && wb_rd_addr != 5'b0) begin
+  if (forward_a == 2'b00 && wb_rd_addr == ex_rs1_addr) forward_a = 2'b01;
+  if (forward_b == 2'b00 && wb_rd_addr == ex_rs2_addr) forward_b = 2'b01;
+end
+
+// Load-use hazard stall
+if (ex_is_load && ex_enable && ex_rd_addr != 5'b0) begin
+  if ((id_rs1_addr == ex_rd_addr && id_reg_write) ||
+      (id_rs2_addr == ex_rd_addr && (id_mem_write || id_branch))) begin
+    stall_if = 1'b1; stall_id = 1'b1; flush_ex = 1'b1;
+  end
+end
+\end{lstlisting}
+
+\subsection{Misprediction Handling}
+
+\begin{lstlisting}[language=Verilog, caption=Misprediction flush and PC correction]
+// Detect misprediction in EX
+if (ex_is_ctrl && ex_enable) begin
+  logic actual_taken;
+  logic [31:0] actual_target;
+  actual_taken  = ex_branch ? ex_branch_taken : 1'b1;
+  actual_target = ex_branch ? ex_branch_target : ex_jump_target;
+
+  if (ex_predicted_taken != actual_taken) begin
+    flush_if = 1'b1; flush_id = 1'b1; flush_ex = 1'b1;
+    pc_next  = actual_target; // corrected PC
+  end
+end
+\end{lstlisting}
 
 \subsection{Immediate Generation}
 
