@@ -5,7 +5,7 @@
 The design is implemented as a modular SystemVerilog project. Two top-level cores are provided:
 \begin{itemize}
     \item \texttt{single\_cycle.sv}: Baseline single-cycle RV32I core used in Milestone~2.
-    \item \texttt{pipelined.sv}: Final five-stage pipelined RV32I core used in Milestone~3.
+    \item \texttt{pipelined.sv}: Final five-stage pipelined RV32I core with forwarding, hazard detection, and two-bit branch prediction used in Milestone~3.
 \end{itemize}
 
 The common building blocks reused by both cores are:
@@ -15,10 +15,103 @@ The common building blocks reused by both cores are:
     \item \texttt{control\_unit.sv}: Instruction decoder and control signal generator.
 \end{itemize}
 
-For the pipelined implementation, the memory system is upgraded to synchronous 64~KiB models as required in Milestone~3:
+For the pipelined implementation, the memory system is upgraded to synchronous 64~KiB BRAM-compatible models as required in Milestone~3:
 \begin{itemize}
-    \item \texttt{imem\_sync.sv}: 64~KiB synchronous instruction memory preloaded from \texttt{isa.mem}.
-    \item \texttt{dmem\_sync.sv}: 64~KiB synchronous data memory and I/O interface.
+    \item \texttt{imem\_sync.sv}: 64~KiB synchronous instruction memory (BRAM-compatible) preloaded from \texttt{isa.mem}.
+    \item \texttt{dmem\_sync.sv}: 64~KiB synchronous data memory (BRAM-compatible) and I/O interface.
+\end{itemize}
+
+\section{Pipelined Processor Architecture}
+
+The pipelined processor implements a five-stage pipeline:
+\begin{enumerate}
+    \item \textbf{IF (Instruction Fetch)}: Fetches instruction from instruction memory using predicted PC
+    \item \textbf{ID (Instruction Decode)}: Decodes instruction and reads register file
+    \item \textbf{EX (Execute)}: Performs ALU operations and branch comparison
+    \item \textbf{MEM (Memory Access)}: Accesses data memory or I/O
+    \item \textbf{WB (Write Back)}: Writes result back to register file
+\end{enumerate}
+
+\subsection{Forwarding Unit}
+
+The forwarding unit resolves data hazards by forwarding data from later pipeline stages to earlier stages:
+
+\begin{itemize}
+    \item \textbf{Forward from MEM stage}: Highest priority, forwards ALU result from MEM stage to EX stage
+    \item \textbf{Forward from WB stage}: Lower priority, forwards register write data from WB stage to EX stage
+    \item \textbf{Forwarding MUX}: Selects between original register data, MEM forwarded data, or WB forwarded data
+\end{itemize}
+
+The forwarding logic checks if the destination register of instructions in MEM or WB stages matches the source registers of the instruction in EX stage, and forwards the appropriate data.
+
+\subsection{Hazard Detection Unit}
+
+The hazard detection unit handles two types of hazards:
+
+\subsubsection{Load-Use Hazard}
+When a load instruction is in EX stage and a dependent instruction is in ID stage, the pipeline must stall:
+\begin{itemize}
+    \item Stall IF and ID stages (prevent new instructions from entering)
+    \item Flush EX stage (insert bubble/NOP)
+    \item Wait until load completes in MEM stage before continuing
+\end{itemize}
+
+\subsubsection{Control Hazard}
+When a branch or jump instruction is mispredicted:
+\begin{itemize}
+    \item Flush IF, ID, and EX stages (remove incorrectly fetched instructions)
+    \item Correct PC to actual target address
+    \item Update branch predictor with actual outcome
+\end{itemize}
+
+\subsection{Two-Bit Branch Predictor}
+
+The processor implements a two-bit dynamic branch predictor with Branch Target Buffer (BTB):
+
+\subsubsection{Branch Target Buffer (BTB)}
+\begin{itemize}
+    \item \textbf{Size}: 256 entries
+    \item \textbf{Structure}: Each entry contains:
+    \begin{itemize}
+        \item Tag: Upper bits of PC for matching
+        \item Predicted PC: Target address for branch/jump
+        \item Two-bit predictor state: Prediction confidence
+    \end{itemize}
+    \item \textbf{Lookup}: In IF stage, uses PC index to check BTB
+    \item \textbf{Update}: In EX stage, updates BTB when branch/jump resolves
+\end{itemize}
+
+\subsubsection{Two-Bit State Machine}
+The predictor uses four states:
+\begin{itemize}
+    \item \textbf{00 (Strongly Not-Taken)}: Predict not-taken with high confidence
+    \item \textbf{01 (Weakly Not-Taken)}: Predict not-taken with low confidence
+    \item \textbf{10 (Weakly Taken)}: Predict taken with low confidence
+    \item \textbf{11 (Strongly Taken)}: Predict taken with high confidence
+\end{itemize}
+
+State transitions:
+\begin{itemize}
+    \item If prediction correct: Move toward stronger confidence (e.g., 01 → 00 or 10 → 11)
+    \item If prediction incorrect: Move toward opposite direction (e.g., 00 → 01 → 11 or 11 → 10 → 01)
+\end{itemize}
+
+\subsubsection{Prediction Logic}
+\begin{itemize}
+    \item \textbf{Branches}: Predict taken if state is 10 or 11 (weakly or strongly taken)
+    \item \textbf{Jumps}: Always predict taken (jumps are unconditional)
+    \item \textbf{Misprediction}: Detected in EX stage when predicted direction differs from actual outcome
+\end{itemize}
+
+\subsection{BRAM-Compatible Memory}
+
+Both instruction and data memories use synchronous read/write operations compatible with FPGA BRAM:
+
+\begin{itemize}
+    \item \textbf{Synchronous Read}: Data available on next clock edge after address is provided
+    \item \textbf{Synchronous Write}: Write occurs on clock edge when enable and write enable are asserted
+    \item \textbf{BRAM Inference}: Quartus synthesis tools can infer BRAM from this structure
+    \item \textbf{Performance}: BRAM provides higher frequency and lower resource usage compared to logic-based memory
 \end{itemize}
 
 \section{Register File Implementation}
@@ -354,6 +447,8 @@ end
 
 \section{Top-Level Module Integration}
 
+\subsection{Single-Cycle Module}
+
 The \texttt{single\_cycle} module connects all components:
 
 \begin{itemize}
@@ -365,14 +460,35 @@ The \texttt{single\_cycle} module connects all components:
     \item Provides debug outputs (\texttt{o\_pc\_debug}, \texttt{o\_insn\_vld})
 \end{itemize}
 
+\subsection{Pipelined Module}
+
+The \texttt{pipelined} module implements the five-stage pipeline with advanced features:
+
+\begin{itemize}
+    \item \textbf{Pipeline Registers}: IF/ID, ID/EX, EX/MEM, MEM/WB registers with enable and flush control
+    \item \textbf{Forwarding Unit}: Resolves data hazards by forwarding from MEM and WB stages
+    \item \textbf{Hazard Detection}: Detects load-use hazards and control hazards
+    \item \textbf{Branch Predictor}: Two-bit predictor with 256-entry BTB
+    \item \textbf{PC Management}: Handles predicted PC, misprediction correction, and stall/flush
+    \item \textbf{Debug Signals}: \texttt{o\_insn\_vld}, \texttt{o\_ctrl}, \texttt{o\_mispred} for performance analysis
+\end{itemize}
+
 \subsection{Key Signal Assignments}
 
+\subsubsection{Single-Cycle}
 \begin{itemize}
     \item \texttt{o\_insn\_vld = i\_reset}: Instruction valid when not reset
     \item \texttt{o\_pc\_debug = pc}: Debug PC output
     \item PC updates on clock edge: \texttt{pc <= pc\_next}
-    \item Register writes occur on clock edge when \texttt{reg\_write} is enabled
-    \item Memory writes occur on clock edge when \texttt{mem\_write} is enabled
+\end{itemize}
+
+\subsubsection{Pipelined}
+\begin{itemize}
+    \item \texttt{o\_insn\_vld = wb\_enable}: Instruction valid when instruction completes WB stage (not flushed)
+    \item \texttt{o\_pc\_debug = pc}: Current PC in IF stage
+    \item \texttt{o\_ctrl = wb\_is\_ctrl \&\& wb\_enable}: Control transfer instruction in WB stage
+    \item \texttt{o\_mispred = wb\_mispred \&\& wb\_enable}: Misprediction occurred (propagated to WB)
+    \item PC updates on clock edge with stall/flush control: \texttt{pc <= pc\_next} when \texttt{if\_enable}
 \end{itemize}
 
 \section{Implementation Challenges and Solutions}
@@ -400,4 +516,34 @@ The \texttt{single\_cycle} module connects all components:
 \textbf{Problem}: Addresses for word access must be word-aligned (LSB bits = 00).
 
 \textbf{Solution}: Truncate address to word boundary using \texttt{word\_addr = \{addr[ADDR\_WIDTH-1:2], 2'b00\}}.
+
+\subsection{Challenge 5: Pipeline Hazards (Pipelined Processor)}
+
+\textbf{Problem}: Data hazards occur when instructions depend on results from previous instructions still in pipeline.
+
+\textbf{Solution}: Implement forwarding unit to forward data from MEM and WB stages to EX stage, eliminating most data hazards without stalling.
+
+\subsection{Challenge 6: Load-Use Hazards (Pipelined Processor)}
+
+\textbf{Problem}: Load instructions require data from memory, which is not available until MEM stage, causing data dependency.
+
+\textbf{Solution}: Detect load-use hazards in hazard detection unit and stall pipeline for one cycle, inserting bubble in EX stage.
+
+\subsection{Challenge 7: Control Hazards (Pipelined Processor)}
+
+\textbf{Problem}: Branch and jump instructions change control flow, but target address is not known until EX stage.
+
+\textbf{Solution}: Implement branch predictor with BTB to predict branch direction and target in IF stage, flush pipeline when misprediction detected.
+
+\subsection{Challenge 8: Branch Prediction Accuracy}
+
+\textbf{Problem}: Static prediction (always not-taken) has low accuracy, reducing performance.
+
+\textbf{Solution}: Implement two-bit dynamic predictor that learns branch behavior and adapts prediction based on history, achieving higher accuracy than static prediction.
+
+\subsection{Challenge 9: BRAM Compatibility}
+
+\textbf{Problem}: Memory must be synthesizable to BRAM for higher frequency and lower resource usage.
+
+\textbf{Solution}: Use synchronous read/write operations with proper enable signals, allowing Quartus to infer BRAM from RTL code.
 
