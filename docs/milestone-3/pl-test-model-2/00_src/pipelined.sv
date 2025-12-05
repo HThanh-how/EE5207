@@ -198,21 +198,36 @@ module pipelined (
         predicted_pc = pc_plus4;
         predict_taken = 1'b0;
         
-        if (btb_tag[btb_index_if] == btb_tag_if && btb_state[btb_index_if] >= 2'b10) begin
-            // Hit and predictor says "taken" (strongly or weakly)
-            btb_hit = 1'b1;
-            predicted_pc = btb_target[btb_index_if];
-            predict_taken = 1'b1;
+        // BTB lookup: check tag match and predictor state
+        // Default prediction: always not-taken (PC+4)
+        if (btb_tag[btb_index_if] == btb_tag_if) begin
+            // Tag match - entry exists in BTB
+            if (btb_state[btb_index_if] >= 2'b10) begin
+                // Predictor says "taken" (weakly or strongly taken)
+                btb_hit = 1'b1;
+                predicted_pc = btb_target[btb_index_if];
+                predict_taken = 1'b1;
+            end
+            // If state is 00 or 01 (not-taken), predict PC+4 (default)
         end
+        // If no tag match, predict PC+4 (default - always not-taken)
+        // Note: Jumps will be learned into BTB and predicted correctly after first execution
     end
     
     // BTB update in EX stage (when branch/jump resolved)
     assign btb_index_ex = ex_pc[BTB_INDEX_WIDTH+1:2];
     assign btb_tag_ex = ex_pc[31:BTB_INDEX_WIDTH+2];
     
+    // BTB reset logic
+    integer k;
     always_ff @(posedge i_clk) begin
         if (~i_reset) begin
-            // Reset handled in initial block
+            // Reset BTB on reset
+            for (k = 0; k < BTB_SIZE; k = k + 1) begin
+                btb_tag[k] <= '0;
+                btb_target[k] <= '0;
+                btb_state[k] <= 2'b01;  // Reset to "weakly not-taken"
+            end
         end else if (ex_enable && ex_is_ctrl) begin
             // Update BTB entry
             btb_tag[btb_index_ex] <= btb_tag_ex;
@@ -569,7 +584,7 @@ module pipelined (
     dmem_sync u_dmem (
         .clk        (i_clk),
         .enable     (mem_enable),
-        .we         (mem_mem_write && (mem_addr < 32'h0001_0000)),
+        .we         (mem_mem_write && (mem_addr < 32'h0001_0000)),  // Only write to memory region (0x0000_0000 - 0x0000_FFFF)
         .addr       (mem_addr),
         .wdata      (mem_wdata),
         .mem_size   (mem_mem_size),
