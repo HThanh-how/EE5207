@@ -1,0 +1,43 @@
+xrun(64): 24.09-s005: (c) Copyright 1995-2025 Cadence Design Systems, Inc.
+TOOL:	xrun(64)	24.09-s005: Started on Dec 13, 2025 at 12:59:40 +07
+xrun
+	-access +rwc
+	-f ./flist.f
+		-sv
+		-timescale 1ns/100ps
+		./../00_src/alu.sv
+		./../00_src/control_unit.sv
+		./../00_src/dmem_sync.sv
+		./../00_src/imem_sync.sv
+		./../00_src/pipelined.sv
+		./../00_src/register_file.sv
+		./../01_bench/driver.sv
+		./../01_bench/scoreboard.sv
+		./../01_bench/tbench.sv
+		./../01_bench/tlib.svh
+Loading snapshot worklib.tbench:sv .................... Done
+xcelium> source /home/yellow/ktmt_adv_12/tools/eda/cadence/XCELIUM2409/tools/xcelium/files/xmsimrc
+xcelium> run
+Open failed on file "../02_test/isa.mem". No such file or directory
+[IMEM_SYNC] ../02_test/isa.mem not found. Falling back to ../02_test/isa_1b.hex
+$readmem error: number too long in file "../02_test/isa_4b.hex" at line 1
+
+PIPELINE - ISA tests
+
+ 
+=================== Result ===================
+Total Clock Cycles Executed = 7
+Total Instructions Executed = 3
+Total Branch Instructions   = 0
+Total Branch Mispredictions = 0
+
+----------------------------------------------
+Instruction Per Cycle (IPC) = 0.43
+Branch Misprediction Rate   = N/A
+
+END of ISA tests
+
+Simulation complete via $finish(1) at time 80 NS + 1
+../01_bench/scoreboard.sv:85         $finish;
+xcelium> exit
+TOOL:	xrun(64)	24.09-s005: Exiting on Dec 13, 2025 at 12:59:41 +07  (total: 00:00:01)
