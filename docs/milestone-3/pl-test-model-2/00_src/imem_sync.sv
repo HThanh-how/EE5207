@@ -19,6 +19,7 @@ module imem_sync (
         integer code;
         int     word;
         int     addr_idx;
+        string  line_buf;  // buffer for skipping malformed lines
 `ifdef DEMO_MEM
         // Demo mode: load small test program
         $readmemh("../02_test/demo.mem", mem);
@@ -52,8 +53,8 @@ module imem_sync (
                             mem[addr_idx+3] = word[31:24];
                             addr_idx += 4;
                         end else begin
-                            // Skip malformed line
-                            void'($fgets("", fd));
+                            // Skip malformed line by reading the rest of the line
+                            void'($fgets(line_buf, fd));
                         end
                     end
                     $fclose(fd);
