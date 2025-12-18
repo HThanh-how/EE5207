@@ -742,9 +742,8 @@ module pipelined (
     // ============================================
     // Outputs
     // ============================================
-    // Debug PC must reflect the instruction in WB stage so that
-    // the ISA testbench can correctly print PASS/ERROR messages.
-    assign o_pc_debug = wb_pc;
+    // Use IF-stage PC for debug, consistent with baseline pl-test.
+    assign o_pc_debug = pc;
     assign o_insn_vld = wb_enable;
     assign o_ctrl = wb_is_ctrl && wb_enable;
     assign o_mispred = wb_mispred && wb_enable;

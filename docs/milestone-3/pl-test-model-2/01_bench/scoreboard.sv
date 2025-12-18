@@ -53,7 +53,9 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : debug
-      if (o_insn_vld && (o_pc_debug == 32'h18)) begin
+      // For instruction-wise PASS/ERROR messages, follow baseline
+      // ISA environment: only check PC debug, do not gate by o_insn_vld.
+      if (o_pc_debug == 32'h18) begin
           $write("%s", o_io_ledr[7:0]);
       end
   end
