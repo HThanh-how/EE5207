@@ -136,7 +136,7 @@ Base & Top & Mapping \\
 \end{table}
 
 \subsection{Synchronous BRAM-Compatible Memories}
-\begin{lstlisting}[language=Verilog, caption=IMEM synchronous read (imem_sync.sv)]
+\begin{lstlisting}[language=Verilog, caption=IMEM synchronous read (\texttt{imem\_sync.sv})]
 always_ff @(posedge clk) begin
   if (enable) begin
     if (byte_addr+3 < MEM_SIZE)
