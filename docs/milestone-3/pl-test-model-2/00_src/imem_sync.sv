@@ -16,17 +16,51 @@ module imem_sync (
 
     initial begin
         integer fd;
+        integer code;
+        int     word;
+        int     addr_idx;
 `ifdef DEMO_MEM
+        // Demo mode: load small test program
         $readmemh("../02_test/demo.mem", mem);
 `else
-        // Prefer server-required file isa.mem; if missing (local), fallback to isa_1b.hex
+        // 1) Try server-preferred isa.mem (byte-per-line)
         fd = $fopen("../02_test/isa.mem", "r");
         if (fd) begin
+            $display("[IMEM_SYNC] Loading ../02_test/isa.mem");
             $fclose(fd);
             $readmemh("../02_test/isa.mem", mem);
         end else begin
-            $display("[IMEM_SYNC] ../02_test/isa.mem not found. Falling back to ../02_test/isa_1b.hex");
-            $readmemh("../02_test/isa_1b.hex", mem);
+            // 2) Try byte-wide isa_1b.hex (Milestone 2/3 common format)
+            fd = $fopen("../02_test/isa_1b.hex", "r");
+            if (fd) begin
+                $display("[IMEM_SYNC] ../02_test/isa.mem not found. Loading ../02_test/isa_1b.hex");
+                $fclose(fd);
+                $readmemh("../02_test/isa_1b.hex", mem);
+            end else begin
+                // 3) Last resort: parse word-wide isa_4b.hex (32-bit/line) into bytes
+                fd = $fopen("../02_test/isa_4b.hex", "r");
+                if (fd) begin
+                    $display("[IMEM_SYNC] Loading ../02_test/isa_4b.hex with manual word-to-byte unpacking");
+                    addr_idx = 0;
+                    while (!$feof(fd) && (addr_idx + 3) < MEM_SIZE) begin
+                        code = $fscanf(fd, "%h\n", word);
+                        if (code == 1) begin
+                            // Little-endian: byte 0 is least-significant
+                            mem[addr_idx+0] = word[7:0];
+                            mem[addr_idx+1] = word[15:8];
+                            mem[addr_idx+2] = word[23:16];
+                            mem[addr_idx+3] = word[31:24];
+                            addr_idx += 4;
+                        end else begin
+                            // Skip malformed line
+                            void'($fgets("", fd));
+                        end
+                    end
+                    $fclose(fd);
+                end else begin
+                    $display("[IMEM_SYNC] ERROR: No isa.mem / isa_1b.hex / isa_4b.hex found");
+                end
+            end
         end
 `endif
     end
