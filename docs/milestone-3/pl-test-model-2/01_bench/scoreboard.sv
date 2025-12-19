@@ -30,9 +30,15 @@ module scoreboard(
   real ipc;            // Instructino Per Cycle
   real misprd_rate;    // Misprediction Rate
 
+  // Buffer to collect PASS/ERROR messages from test program via LEDR
+  string pass_buffer;
+  logic   collecting_pass;
+
   // Display test name
   initial begin
     $display("\nPIPELINE - ISA tests\n");
+    pass_buffer = "";
+    collecting_pass = 1'b0;
   end
 
 
@@ -42,6 +48,8 @@ module scoreboard(
         num_ctrl    <= '0;
         num_insn    <= '0;
         num_mispred <= '0;
+        pass_buffer = "";
+        collecting_pass = 1'b0;
       end
       else begin
         num_cycle   <=              num_cycle   + 1;
@@ -53,16 +61,34 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : debug
-      // For instruction-wise PASS/ERROR messages, follow baseline
-      // ISA environment: only check PC debug, do not gate by o_insn_vld.
+      // Collect PASS/ERROR messages from test program via LEDR at PC 0x18
+      // The test program writes ASCII characters to LEDR, which we buffer
       if (o_pc_debug == 32'h18) begin
-          $write("%s", o_io_ledr[7:0]);
+          string char_str;
+          int    char_code;
+          char_code = o_io_ledr[7:0];
+          if (char_code != 0) begin
+              char_str = string'(char_code);
+              pass_buffer = {pass_buffer, char_str};
+              $write("%s", char_str);
+              collecting_pass = 1'b1;
+          end
+      end
+      // Stop collecting when we see newline or reach result section
+      if (collecting_pass && (o_pc_debug == 32'h1c || o_pc_debug == 32'h20)) begin
+          collecting_pass = 1'b0;
       end
   end
 
 
   always @(negedge i_clk) begin : result
       if (o_insn_vld && ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20))) begin
+        // Print PASS/ERROR messages only if collected from test program via LEDR
+        // No auto-generation - PASS must come from actual test program execution
+        if (pass_buffer.len() > 0) begin
+            $display("%s", pass_buffer);
+            $display("");
+        end
         $display("\n=================== Result ===================");
         if (num_cycle != 0) $display("Total Clock Cycles Executed = %1.0f", num_cycle);
         else                $display("Total Clock Cycles Executed = N/A");
