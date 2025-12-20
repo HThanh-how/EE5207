@@ -1,5 +1,5 @@
-# Xcelium Makefile for Milestone 3 - Model 2
-# Forwarding with Two-bit Branch Prediction
+# Xcelium Makefile for Milestone 3 - Model 1
+# Non-Forwarding with Two-bit Branch Prediction
 
 .PHONY: all
 all: xrun
@@ -23,4 +23,3 @@ simvision:
 clean:
 	@echo "Cleaning Xcelium output..."
 	@rm -rf x* *.vcd *.shm *.log xcelium.d INCA_libs
-

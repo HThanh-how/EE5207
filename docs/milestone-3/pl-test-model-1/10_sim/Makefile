@@ -1,5 +1,5 @@
-# Verilator Makefile for Milestone 3 - Model 2
-# Forwarding with Two-bit Branch Prediction
+# Verilator Makefile for Milestone 3 - Model 1
+# Non-Forwarding with Two-bit Branch Prediction
 
 .PHONY: all
 all: build run
@@ -23,4 +23,3 @@ wave:
 clean:
 	@echo "Cleaning Verilator output..."
 	@rm -rf obj_dir *.vcd waveform.vcd
-
