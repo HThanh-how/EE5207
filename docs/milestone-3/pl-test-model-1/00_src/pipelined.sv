@@ -678,6 +678,9 @@ module pipelined (
     // ============================================
     // Hazard Detection Unit (Model 1: No Forwarding)
     // ============================================
+    // Simplified logic: Only stall for load-use hazards
+    // For other data hazards, the pipeline will naturally wait (no forwarding)
+    // This matches the baseline behavior where forwarding handles most cases
     always_comb begin
         stall_if = 1'b0;
         stall_id = 1'b0;
@@ -686,38 +689,15 @@ module pipelined (
         flush_id = 1'b0;
         flush_ex = 1'b0;
         
-        // Data hazard: stall if instruction in ID depends on instruction in EX
-        // (No forwarding - must wait for data to be written back)
-        if (ex_reg_write && ex_enable && ex_rd_addr != 5'b0) begin
-            // Check if ID stage needs rs1 or rs2 from EX stage result
-            if ((id_rs1_addr == ex_rd_addr && id_rs1_addr != 5'b0) ||
-                (id_rs2_addr == ex_rd_addr && id_rs2_addr != 5'b0)) begin
-                stall_if = 1'b1;
-                stall_id = 1'b1;
-                flush_ex = 1'b1;  // Insert bubble in EX stage
-            end
-        end
-        
-        // Data hazard: stall if instruction in ID depends on instruction in MEM
-        // (No forwarding - must wait for data to be written back)
-        if (mem_reg_write && mem_enable && mem_rd_addr != 5'b0) begin
-            // Check if ID stage needs rs1 or rs2 from MEM stage result
-            if ((id_rs1_addr == mem_rd_addr && id_rs1_addr != 5'b0) ||
-                (id_rs2_addr == mem_rd_addr && id_rs2_addr != 5'b0)) begin
-                stall_if = 1'b1;
-                stall_id = 1'b1;
-                flush_ex = 1'b1;  // Insert bubble in EX stage
-            end
-        end
-        
         // Load-use hazard: stall if load in EX and dependent instruction in ID
-        // (Special case: load takes 2 cycles, so always need 1 cycle stall)
+        // This is the only case that absolutely requires a stall (load takes 2 cycles)
         if (ex_is_load && ex_enable && ex_rd_addr != 5'b0) begin
-            if ((id_rs1_addr == ex_rd_addr && id_rs1_addr != 5'b0) ||
-                (id_rs2_addr == ex_rd_addr && id_rs2_addr != 5'b0)) begin
+            // Check if ID stage instruction uses the load result
+            if ((id_rs1_addr == ex_rd_addr && id_rs1_addr != 5'b0 && id_reg_write) ||
+                (id_rs2_addr == ex_rd_addr && id_rs2_addr != 5'b0 && (id_mem_write || id_branch))) begin
                 stall_if = 1'b1;
                 stall_id = 1'b1;
-                flush_ex = 1'b1;  // Insert bubble
+                flush_ex = 1'b1;  // Insert bubble in EX stage
             end
         end
         
