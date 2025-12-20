@@ -1,0 +1,15 @@
+# Xcelium filelist for Milestone 3 - Pipelined Processor Model 2
+# Forwarding with Two-bit Branch Prediction
+
+./../00_src/register_file.sv
+./../00_src/alu.sv
+./../00_src/control_unit.sv
+./../00_src/imem_sync.sv
+./../00_src/dmem_sync.sv
+./../00_src/pipelined.sv
+
+./../01_bench/tlib.svh
+./../01_bench/driver.sv
+./../01_bench/scoreboard.sv
+./../01_bench/tbench.sv
+
