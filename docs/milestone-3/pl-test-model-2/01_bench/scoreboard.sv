@@ -70,18 +70,16 @@ module scoreboard(
   // ============================================
   always @(negedge i_clk) begin : debug_ledr
       if (i_reset) begin
-          // Debug: Print LEDR when PC is in interesting range
-          if (o_pc_debug >= 32'h10 && o_pc_debug <= 32'h20) begin
-              if (o_io_ledr[7:0] != 8'b0 || o_io_ledr[7:0] != prev_ledr[7:0]) begin
-                  $display("[DEBUG] PC=%h LEDR[7:0]=%h (%c) insn_vld=%b", 
-                           o_pc_debug, o_io_ledr[7:0], o_io_ledr[7:0], o_insn_vld);
-              end
+          // Debug: Print LEDR when it changes or PC is in interesting range
+          if (o_io_ledr[7:0] != prev_ledr[7:0] || (o_pc_debug >= 32'h10 && o_pc_debug <= 32'h24)) begin
+              $display("[DEBUG] PC=%h LEDR[7:0]=%h (%c) insn_vld=%b prev_LEDR=%h", 
+                       o_pc_debug, o_io_ledr[7:0], o_io_ledr[7:0], o_insn_vld, prev_ledr[7:0]);
           end
       end
   end
 
   // ============================================
-  // NEGEDGE METHODS (Original)
+  // NEGEDGE METHODS - Check at different PC values (accounting for pipeline delay)
   // ============================================
   always @(negedge i_clk) begin : debug_negedge
       if (i_reset) begin
@@ -108,7 +106,7 @@ module scoreboard(
               $write("[M3]%s", o_io_ledr[7:0]);
           end
           
-          // METHOD 4: Check LEDR change with o_insn_vld
+          // METHOD 4: Check LEDR change with o_insn_vld (any PC)
           if (o_insn_vld && o_io_ledr[7:0] != prev_ledr[7:0] && o_io_ledr[7:0] != 8'b0) begin
               $write("[M4]%s", o_io_ledr[7:0]);
           end
@@ -118,37 +116,29 @@ module scoreboard(
               $write("[M5]%s", o_io_ledr[7:0]);
           end
           
-          // METHOD 6: Check PC change to 0x18 with o_insn_vld
-          if (o_insn_vld && o_pc_debug == 32'h18 && prev_pc_debug != 32'h18) begin
+          // METHOD 28: Check PC 0x1c (after 0x18, accounting for pipeline delay)
+          if (o_insn_vld && (o_pc_debug == 32'h1c)) begin
               if (o_io_ledr[7:0] != 8'b0) begin
-                  $write("[M6]%s", o_io_ledr[7:0]);
+                  $write("[M28]%s", o_io_ledr[7:0]);
               end else begin
-                  $write("[M6-EMPTY]");
+                  $write("[M28-EMPTY]");
               end
           end
           
-          // METHOD 7: Check o_insn_vld rising edge at PC 0x18
-          if (o_insn_vld && !prev_insn_vld && o_pc_debug == 32'h18) begin
+          // METHOD 29: Check PC 0x20 (after 0x1c)
+          if (o_insn_vld && (o_pc_debug == 32'h20)) begin
               if (o_io_ledr[7:0] != 8'b0) begin
-                  $write("[M7]%s", o_io_ledr[7:0]);
+                  $write("[M29]%s", o_io_ledr[7:0]);
               end else begin
-                  $write("[M7-EMPTY]");
+                  $write("[M29-EMPTY]");
               end
           end
           
-          // METHOD 8: Check LEDR non-zero at PC 0x18
-          if (o_pc_debug == 32'h18 && o_io_ledr[7:0] != 8'b0) begin
-              $write("[M8]%s", o_io_ledr[7:0]);
-          end
-          
-          // METHOD 9: Check o_insn_vld && LEDR non-zero at PC 0x18
-          if (o_insn_vld && o_pc_debug == 32'h18 && o_io_ledr[7:0] != 8'b0) begin
-              $write("[M9]%s", o_io_ledr[7:0]);
-          end
-          
-          // METHOD 10: Check PC 0x18 && LEDR change && o_insn_vld
-          if (o_pc_debug == 32'h18 && o_io_ledr[7:0] != prev_ledr[7:0] && o_insn_vld) begin
-              $write("[M10]%s", o_io_ledr[7:0]);
+          // METHOD 30: Check PC range 0x14-0x24 (wider range)
+          if (o_insn_vld && (o_pc_debug >= 32'h14 && o_pc_debug <= 32'h24)) begin
+              if (o_io_ledr[7:0] != 8'b0 && o_io_ledr[7:0] != prev_ledr[7:0]) begin
+                  $write("[M30]PC=%h:%s", o_pc_debug, o_io_ledr[7:0]);
+              end
           end
       end
   end
@@ -176,11 +166,6 @@ module scoreboard(
               end
           end
           
-          // METHOD 13: Posedge - LEDR change at PC 0x18
-          if (o_pc_debug == 32'h18 && o_io_ledr[7:0] != prev_ledr[7:0] && o_io_ledr[7:0] != 8'b0) begin
-              $write("[M13]%s", o_io_ledr[7:0]);
-          end
-          
           // METHOD 14: Posedge - LEDR change with o_insn_vld
           if (o_insn_vld && o_io_ledr[7:0] != prev_ledr[7:0] && o_io_ledr[7:0] != 8'b0) begin
               $write("[M14]%s", o_io_ledr[7:0]);
@@ -191,72 +176,21 @@ module scoreboard(
               $write("[M15]%s", o_io_ledr[7:0]);
           end
           
-          // METHOD 16: Posedge - PC change to 0x18 with o_insn_vld
-          if (o_insn_vld && o_pc_debug == 32'h18 && prev_pc_debug != 32'h18) begin
-              if (o_io_ledr[7:0] != 8'b0) begin
-                  $write("[M16]%s", o_io_ledr[7:0]);
-              end else begin
-                  $write("[M16-EMPTY]");
-              end
-          end
-          
-          // METHOD 17: Posedge - o_insn_vld rising edge at PC 0x18
-          if (o_insn_vld && !prev_insn_vld && o_pc_debug == 32'h18) begin
-              if (o_io_ledr[7:0] != 8'b0) begin
-                  $write("[M17]%s", o_io_ledr[7:0]);
-              end else begin
-                  $write("[M17-EMPTY]");
-              end
-          end
-          
-          // METHOD 18: Posedge - LEDR non-zero at PC 0x18
-          if (o_pc_debug == 32'h18 && o_io_ledr[7:0] != 8'b0) begin
-              $write("[M18]%s", o_io_ledr[7:0]);
-          end
-          
-          // METHOD 19: Posedge - o_insn_vld && LEDR non-zero at PC 0x18
-          if (o_insn_vld && o_pc_debug == 32'h18 && o_io_ledr[7:0] != 8'b0) begin
-              $write("[M19]%s", o_io_ledr[7:0]);
-          end
-          
-          // METHOD 20: Posedge - PC 0x18 && LEDR change && o_insn_vld
-          if (o_pc_debug == 32'h18 && o_io_ledr[7:0] != prev_ledr[7:0] && o_insn_vld) begin
-              $write("[M20]%s", o_io_ledr[7:0]);
-          end
-      end
-  end
-
-  // ============================================
-  // REMOVE COMBINATIONAL METHODS (They cause infinite loops)
-  // ============================================
-
-  // ============================================
-  // ALTERNATIVE PC VALUES
-  // ============================================
-  always @(negedge i_clk) begin : debug_alt_pc
-      if (i_reset) begin
-          // METHOD 25: Check PC 0x14 (before 0x18)
-          if (o_insn_vld && (o_pc_debug == 32'h14)) begin
-              if (o_io_ledr[7:0] != 8'b0) begin
-                  $write("[M25]%s", o_io_ledr[7:0]);
-              end else begin
-                  $write("[M25-EMPTY]");
-              end
-          end
-          
-          // METHOD 26: Check PC 0x1c (after 0x18, before result)
+          // METHOD 31: Posedge - PC 0x1c (after 0x18)
           if (o_insn_vld && (o_pc_debug == 32'h1c)) begin
               if (o_io_ledr[7:0] != 8'b0) begin
-                  $write("[M26]%s", o_io_ledr[7:0]);
+                  $write("[M31]%s", o_io_ledr[7:0]);
               end else begin
-                  $write("[M26-EMPTY]");
+                  $write("[M31-EMPTY]");
               end
           end
           
-          // METHOD 27: Check PC range 0x14-0x20 with LEDR non-zero
-          if (o_insn_vld && (o_pc_debug >= 32'h14 && o_pc_debug <= 32'h20)) begin
-              if (o_io_ledr[7:0] != 8'b0 && o_io_ledr[7:0] != prev_ledr[7:0]) begin
-                  $write("[M27]PC=%h:%s", o_pc_debug, o_io_ledr[7:0]);
+          // METHOD 32: Posedge - PC 0x20 (after 0x1c)
+          if (o_insn_vld && (o_pc_debug == 32'h20)) begin
+              if (o_io_ledr[7:0] != 8'b0) begin
+                  $write("[M32]%s", o_io_ledr[7:0]);
+              end else begin
+                  $write("[M32-EMPTY]");
               end
           end
       end
