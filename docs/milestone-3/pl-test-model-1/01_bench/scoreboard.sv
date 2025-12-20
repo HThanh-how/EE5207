@@ -52,40 +52,40 @@ module scoreboard(
   end
 
 
-  always @(negedge i_clk) begin : debug
-      // For instruction-wise PASS/ERROR messages, follow baseline
-      // ISA environment: only check PC debug, do not gate by o_insn_vld.
-      // Print directly from LEDR at PC 0x18 (same as milestone 2)
+  always @(negedge i_clk) begin
+      // Print PASS/ERROR messages from test program via LEDR at PC 0x18
+      // Same as milestone 2 - simple and direct
       if (o_pc_debug == 32'h18) begin
           $write("%s", o_io_ledr[7:0]);
       end
-  end
 
+      // Print results and finish at PC 0x1c or 0x20
+      if ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20)) begin
+          $display("");  // Newline after PASS/ERROR messages
+          
+          // Print statistics
+          $display("\n=================== Result ===================");
+          if (num_cycle != 0) $display("Total Clock Cycles Executed = %1.0f", num_cycle);
+          else                $display("Total Clock Cycles Executed = N/A");
 
-  always @(negedge i_clk) begin : result
-      if (o_insn_vld && ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20))) begin
-        $display("\n=================== Result ===================");
-        if (num_cycle != 0) $display("Total Clock Cycles Executed = %1.0f", num_cycle);
-        else                $display("Total Clock Cycles Executed = N/A");
+          if (num_insn  != 0) $display("Total Instructions Executed = %1.0f", num_insn);
+          else                $display("Total Instructions Executed = N/A");
 
-        if (num_insn  != 0) $display("Total Instructions Executed = %1.0f", num_insn);
-        else                $display("Total Instructions Executed = N/A");
+          if (num_cycle != 0) $display("Total Branch Instructions   = %1.0f", num_ctrl);
+          else                $display("Total Branch Instructions   = N/A");
 
-        if (num_cycle != 0) $display("Total Branch Instructions   = %1.0f", num_ctrl);
-        else                $display("Total Branch Instructions   = N/A");
+          if (num_cycle != 0) $display("Total Branch Mispredictions = %1.0f", num_mispred);
+          else                $display("Total Branch Mispredictions = N/A");
 
-        if (num_cycle != 0) $display("Total Branch Mispredictions = %1.0f", num_mispred);
-        else                $display("Total Branch Mispredictions = N/A");
+          $display("\n----------------------------------------------");
+          if (num_cycle != 0) $display("Instruction Per Cycle (IPC) = %1.2f", num_insn/num_cycle);
+          else                $display("Instruction Per Cycle (IPC) = N/A");
 
-        $display("\n----------------------------------------------");
-        if (num_cycle != 0) $display("Instruction Per Cycle (IPC) = %1.2f", num_insn/num_cycle);
-        else                $display("Instruction Per Cycle (IPC) = N/A");
+          if (num_ctrl != 0)  $display("Branch Misprediction Rate   = %2.2f %%", num_mispred/num_ctrl * 100);
+          else                $display("Branch Misprediction Rate   = N/A");
 
-        if (num_ctrl != 0)  $display("Branch Misprediction Rate   = %2.2f %%", num_mispred/num_ctrl * 100);
-        else                $display("Branch Misprediction Rate   = N/A");
-
-        $display("\nEND of ISA tests\n");
-        $finish;
+          $display("\nEND of ISA tests\n");
+          $finish;
       end
   end
 
