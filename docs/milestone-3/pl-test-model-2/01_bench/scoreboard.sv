@@ -30,9 +30,6 @@ module scoreboard(
   real ipc;            // Instructino Per Cycle
   real misprd_rate;    // Misprediction Rate
 
-  // Track previous LEDR value to detect changes
-  logic [31:0] prev_ledr;
-
   // Display test name
   initial begin
     $display("\nPIPELINE - ISA tests\n");
@@ -45,7 +42,6 @@ module scoreboard(
         num_ctrl    <= '0;
         num_insn    <= '0;
         num_mispred <= '0;
-        prev_ledr   <= 32'b0;
       end
       else begin
         num_cycle   <=              num_cycle   + 1;
@@ -56,17 +52,14 @@ module scoreboard(
   end
 
 
-  // Monitor LEDR changes - print PASS/ERROR messages
-  always @(posedge i_clk) begin
+  // Print PASS/ERROR messages from test program via LEDR
+  // Test program writes to LEDR when PC = 0x18 (similar to milestone 2)
+  always @(negedge i_clk) begin
       if (i_reset) begin
-          // Check if LEDR[7:0] changed and is non-zero
-          // Use posedge to catch LEDR update right after it's written
-          if (o_io_ledr[7:0] != prev_ledr[7:0] && o_io_ledr[7:0] != 8'b0) begin
+          // Check PC 0x18 to print PASS/ERROR messages (same as milestone 2)
+          if (o_pc_debug == 32'h18) begin
               $write("%s", o_io_ledr[7:0]);
           end
-          prev_ledr <= o_io_ledr;
-      end else begin
-          prev_ledr <= 32'b0;
       end
   end
 
