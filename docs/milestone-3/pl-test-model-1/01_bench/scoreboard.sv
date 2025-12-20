@@ -58,14 +58,18 @@ module scoreboard(
 
   always @(negedge i_clk) begin
       // Print PASS/ERROR messages from test program via LEDR
-      // In pipeline, LEDR is written in MEM stage, but o_pc_debug is IF stage PC
-      // So we check LEDR change instead of exact PC match to handle pipeline timing
-      // Check BEFORE updating prev_ledr to catch the change
-      if (o_io_ledr[7:0] != prev_ledr[7:0] && o_io_ledr[7:0] != 8'b0) begin
-          $write("%s", o_io_ledr[7:0]);
+      // Test program writes characters to LEDR[7:0] sequentially
+      // Print whenever LEDR[7:0] changes and is non-zero
+      if (i_reset) begin  // Only check when not in reset
+          // Check if LEDR[7:0] changed and is non-zero
+          if (o_io_ledr[7:0] != prev_ledr[7:0] && o_io_ledr[7:0] != 8'b0) begin
+              $write("%s", o_io_ledr[7:0]);
+          end
+          // Update prev_ledr AFTER checking
+          prev_ledr <= o_io_ledr;
+      end else begin
+          prev_ledr <= 32'b0;
       end
-      // Update prev_ledr AFTER checking
-      prev_ledr <= o_io_ledr;
 
       // Print results and finish at PC 0x1c or 0x20
       if ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20)) begin
