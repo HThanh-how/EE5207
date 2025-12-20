@@ -59,6 +59,11 @@ module scoreboard(
   // Monitor LEDR changes - print PASS/ERROR messages
   always @(posedge i_clk) begin
       if (i_reset) begin
+          // DEBUG: Uncomment để xem LEDR có thay đổi không
+          // if (o_io_ledr[7:0] != prev_ledr[7:0]) begin
+          //     $display("LEDR change: prev=%h, curr=%h, PC=%h", prev_ledr[7:0], o_io_ledr[7:0], o_pc_debug);
+          // end
+          
           // Check if LEDR[7:0] changed and is non-zero
           // Use posedge to catch LEDR update right after it's written
           if (o_io_ledr[7:0] != prev_ledr[7:0] && o_io_ledr[7:0] != 8'b0) begin
@@ -70,7 +75,8 @@ module scoreboard(
       end
   end
 
-      // Print results and finish at PC 0x1c or 0x20
+  // Print results and finish at PC 0x1c or 0x20
+  always @(negedge i_clk) begin
       if ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20)) begin
           $display("");  // Newline after PASS/ERROR messages
           

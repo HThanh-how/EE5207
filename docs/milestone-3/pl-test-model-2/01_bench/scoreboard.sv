@@ -70,7 +70,8 @@ module scoreboard(
       end
   end
 
-      // Print results and finish at PC 0x1c or 0x20
+  // Print results and finish at PC 0x1c or 0x20
+  always @(negedge i_clk) begin
       if ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20)) begin
           $display("");  // Newline after PASS/ERROR messages
           
