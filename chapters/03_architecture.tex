@@ -57,6 +57,7 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
 
 \begin{figure}[ht]
     \centering
+    \makebox[\textwidth]{%
     \resizebox{\textwidth}{!}{%
     \begin{tikzpicture}[
         >=stealth,
@@ -180,7 +181,8 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         \draw[signal] (memwb) to[bend left=30] node[above, font=\tiny] {pc+4} (wb_mux);
         
     \end{tikzpicture}
-    }
+    }%
+    }%
     \caption{Complete block diagram of the five-stage pipelined RISC-V processor showing all major components, pipeline registers, forwarding paths, hazard detection, and branch prediction.}
     \label{fig:pipeline_block_diagram}
 \end{figure}
@@ -349,6 +351,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \begin{figure}[ht]
     \centering
+    \makebox[0.9\textwidth]{%
     \resizebox{0.9\textwidth}{!}{%
     \begin{tikzpicture}[
         >=stealth,
@@ -421,7 +424,8 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \draw[signal, dashed, blue] (wb_data) to[bend right=30] (mux_rs2);
         
     \end{tikzpicture}
-    }
+    }%
+    }%
     \caption{EX Stage detailed block diagram showing ALU, forwarding MUXes, branch comparison, and target calculation.}
     \label{fig:ex_stage_detail}
 \end{figure}
@@ -430,6 +434,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \begin{figure}[ht]
     \centering
+    \makebox[0.85\textwidth]{%
     \resizebox{0.85\textwidth}{!}{%
     \begin{tikzpicture}[
         >=stealth,
@@ -484,7 +489,8 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \draw[signal] (read_mux) -- (mem_rdata);
         
     \end{tikzpicture}
-    }
+    }%
+    }%
     \caption{MEM Stage block diagram showing DMEM access and I/O memory mapping with address decoder.}
     \label{fig:mem_stage_detail}
 \end{figure}
