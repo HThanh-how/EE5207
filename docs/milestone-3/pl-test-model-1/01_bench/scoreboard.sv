@@ -60,18 +60,16 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : debug
-      if (!i_reset) begin
-          // Method 1: Check PC = 0x18 (like milestone-2, but o_pc_debug = wb_pc in milestone-3)
-          // When instruction at PC 0x18 reaches WB stage, o_pc_debug = 0x18
-          // At that time, o_io_ledr should already have the value written in MEM stage
-          if (o_pc_debug == 32'h18) begin
-              $write("%s", o_io_ledr[7:0]);
-          end
-          // Method 2: Also catch LEDR changes as backup
-          // This catches I/O writes that happen at other PCs
-          else if ((o_io_ledr[7:0] != prev_ledr) && (o_io_ledr[7:0] != 8'b0)) begin
-              $write("%s", o_io_ledr[7:0]);
-          end
+      // Method 1: Check PC = 0x18 (like milestone-2, but o_pc_debug = wb_pc in milestone-3)
+      // When instruction at PC 0x18 reaches WB stage, o_pc_debug = 0x18
+      // At that time, o_io_ledr should already have the value written in MEM stage
+      if (o_pc_debug == 32'h18) begin
+          $write("%s", o_io_ledr[7:0]);
+      end
+      // Method 2: Also catch LEDR changes as backup
+      // This catches I/O writes that happen at other PCs
+      else if ((o_io_ledr[7:0] != prev_ledr) && (o_io_ledr[7:0] != 8'b0)) begin
+          $write("%s", o_io_ledr[7:0]);
       end
   end
 
