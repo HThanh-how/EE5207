@@ -216,7 +216,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \centering
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.5cm,
+        node distance=2cm,
         every node/.style={align=center},
         comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=1cm, fill=blue!10, text centered, align=center},
         mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20, align=center},
@@ -225,20 +225,20 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     ]
         % Inputs
         \node[comp] (ex_rs1) {EX rs1\\data};
-        \node[comp, below=1cm of ex_rs1] (ex_rs2) {EX rs2\\data};
-        \node[comp, right=2cm of ex_rs1] (mem_alu) {MEM ALU\\result};
-        \node[comp, right=2cm of ex_rs2] (wb_data) {WB reg\\wdata};
+        \node[comp, below=1.5cm of ex_rs1] (ex_rs2) {EX rs2\\data};
+        \node[comp, right=2.5cm of ex_rs1] (mem_alu) {MEM ALU\\result};
+        \node[comp, right=2.5cm of ex_rs2] (wb_data) {WB reg\\wdata};
         
         % Forwarding logic
-        \node[comp, above=1.5cm of mem_alu] (forward_logic) {Forwarding\\Logic};
+        \node[comp, above=2cm of mem_alu] (forward_logic) {Forwarding\\Logic};
         
         % MUXes
-        \node[mux, right=2cm of ex_rs1] (mux_a) {MUX\\A};
-        \node[mux, right=2cm of ex_rs2] (mux_b) {MUX\\B};
+        \node[mux, right=2.5cm of ex_rs1] (mux_a) {MUX\\A};
+        \node[mux, right=2.5cm of ex_rs2] (mux_b) {MUX\\B};
         
         % Outputs
-        \node[comp, right=2cm of mux_a] (forward_rs1) {Forwarded\\rs1};
-        \node[comp, right=2cm of mux_b] (forward_rs2) {Forwarded\\rs2};
+        \node[comp, right=2.5cm of mux_a] (forward_rs1) {Forwarded\\rs1};
+        \node[comp, right=2.5cm of mux_b] (forward_rs2) {Forwarded\\rs2};
         
         % Connections
         \draw[signal] (ex_rs1) -- (mux_a);
@@ -248,14 +248,14 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \draw[signal] (wb_data) -- (mux_a);
         \draw[signal] (wb_data) -- (mux_b);
         
-        \draw[signal, dashed] (forward_logic) -- node[left, label] {forward\_a(1:0)} (mux_a);
-        \draw[signal, dashed] (forward_logic) -- node[left, label] {forward\_b(1:0)} (mux_b);
+        \draw[signal, dashed] (forward_logic) to[bend left=15] node[left, label, xshift=-0.3cm] {forward\_a(1:0)} (mux_a);
+        \draw[signal, dashed] (forward_logic) to[bend right=15] node[left, label, xshift=-0.3cm] {forward\_b(1:0)} (mux_b);
         
         \draw[signal] (mux_a) -- (forward_rs1);
         \draw[signal] (mux_b) -- (forward_rs2);
         
         % Labels
-        \node[above=0.2cm of forward_logic, label] {Compare: ex\_rs1\_addr, ex\_rs2\_addr vs mem\_rd\_addr, wb\_rd\_addr};
+        \node[above=0.3cm of forward_logic, label, text width=8cm] {Compare: ex\_rs1\_addr, ex\_rs2\_addr vs mem\_rd\_addr, wb\_rd\_addr};
         
     \end{tikzpicture}
     \caption{Forwarding Unit block diagram showing data paths from MEM and WB stages to EX stage MUXes.}
@@ -268,7 +268,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \centering
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.5cm,
+        node distance=2cm,
         every node/.style={align=center},
         comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=green!10, text centered, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=orange!20, text centered, font=\small, align=center},
@@ -277,29 +277,29 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     ]
         % Inputs
         \node[comp] (id_stage) {ID Stage\\Signals};
-        \node[comp, right=1.5cm of id_stage] (ex_stage) {EX Stage\\Signals};
-        \node[comp, below=1cm of id_stage] (mem_stage) {MEM Stage\\Signals};
+        \node[comp, right=2cm of id_stage] (ex_stage) {EX Stage\\Signals};
+        \node[comp, below=1.5cm of id_stage] (mem_stage) {MEM Stage\\Signals};
         
         % Detection logic
-        \node[logic, right=2cm of ex_stage] (load_use) {Load-Use\\Detector};
-        \node[logic, below=0.5cm of load_use] (ctrl_hazard) {Control\\Hazard\\Detector};
+        \node[logic, right=2.5cm of ex_stage] (load_use) {Load-Use\\Detector};
+        \node[logic, below=1cm of load_use] (ctrl_hazard) {Control\\Hazard\\Detector};
         
         % Outputs
-        \node[comp, right=2cm of load_use] (stall) {Stall\\Signals};
-        \node[comp, right=2cm of ctrl_hazard] (flush) {Flush\\Signals};
+        \node[comp, right=2.5cm of load_use] (stall) {Stall\\Signals};
+        \node[comp, right=2.5cm of ctrl_hazard] (flush) {Flush\\Signals};
         
         % Connections
-        \draw[signal] (id_stage) -- (load_use);
+        \draw[signal] (id_stage) to[bend left=10] (load_use);
         \draw[signal] (ex_stage) -- (load_use);
-        \draw[signal] (ex_stage) -- (ctrl_hazard);
-        \draw[signal] (mem_stage) -- (ctrl_hazard);
+        \draw[signal] (ex_stage) to[bend right=10] (ctrl_hazard);
+        \draw[signal] (mem_stage) to[bend left=10] (ctrl_hazard);
         
-        \draw[signal] (load_use) -- node[above, label] {stall\_if, stall\_id, flush\_ex} (stall);
-        \draw[signal] (ctrl_hazard) -- node[above, label] {flush\_if, flush\_id, flush\_ex} (flush);
+        \draw[signal] (load_use) -- node[above, label, yshift=0.2cm] {stall\_if, stall\_id, flush\_ex} (stall);
+        \draw[signal] (ctrl_hazard) -- node[above, label, yshift=0.2cm] {flush\_if, flush\_id, flush\_ex} (flush);
         
-        % Labels
-        \node[above=0.3cm of id_stage, label] {id\_rs1\_addr, id\_rs2\_addr, id\_reg\_write, id\_mem\_write, id\_branch};
-        \node[above=0.3cm of ex_stage, label] {ex\_is\_load, ex\_rd\_addr, ex\_is\_ctrl, ex\_predicted\_taken, ex\_branch\_taken};
+        % Labels - moved further to avoid overlap
+        \node[above=0.5cm of id_stage, label, text width=6cm] {id\_rs1\_addr, id\_rs2\_addr, id\_reg\_write, id\_mem\_write, id\_branch};
+        \node[above=0.5cm of ex_stage, label, text width=6cm] {ex\_is\_load, ex\_rd\_addr, ex\_is\_ctrl, ex\_predicted\_taken, ex\_branch\_taken};
         
     \end{tikzpicture}
     \caption{Hazard Detection Unit block diagram showing detection logic for load-use and control hazards.}
