@@ -67,9 +67,9 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
     \centering
     \begin{tikzpicture}[
         >=stealth,
-        node distance=0.8cm and 1.2cm,
+        node distance=1.0cm and 1.5cm,
         every node/.style={align=center},
-        scale=0.65,
+        scale=0.6,
         stage/.style={rectangle, draw, rounded corners, minimum width=2.0cm, minimum height=1.2cm, fill=blue!10, text centered, align=center, font=\footnotesize},
         module/.style={rectangle, draw, rounded corners, minimum width=1.6cm, minimum height=0.8cm, fill=green!10, text centered, align=center, font=\tiny},
         reg/.style={rectangle, draw, minimum width=1.4cm, minimum height=0.6cm, fill=orange!15, text centered, font=\tiny, align=center},
@@ -157,10 +157,10 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         \draw[signal] (ifid) -- (imm_gen);
         \draw[signal] (imm_gen) -- (idex);
         
-        % Forwarding connections
-        \draw[forward] (exmem) to[bend right=25] node[below, font=\tiny] {} (forward_unit);
-        \draw[forward] (memwb) to[bend right=30] node[below, font=\tiny] {} (forward_unit);
-        \draw[forward] (forward_unit) -- (ex_stage);
+        % Forwarding connections - increased bend to avoid overlap
+        \draw[forward] (exmem) to[bend right=30, looseness=1.2] node[below, font=\tiny] {} (forward_unit);
+        \draw[forward] (memwb) to[bend right=40, looseness=1.3] node[below, font=\tiny] {} (forward_unit);
+        \draw[forward] (forward_unit) to[bend left=5] (ex_stage);
         
         % ALU connections
         \draw[signal] (idex) -- (alu);
@@ -176,17 +176,17 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         \draw[signal] (exmem) -- (io_map);
         \draw[signal] (io_map) -- (memwb);
         
-        % Hazard Detection connections
-        \draw[control] (idex) -- (hazard);
-        \draw[control] (exmem) -- (hazard);
-        \draw[control] (hazard) to[bend right=25] node[left, font=\tiny] {} (if_stage);
-        \draw[control] (hazard) to[bend right=15] node[left, font=\tiny] {} (id_stage);
-        \draw[control] (hazard) to[bend left=15] node[right, font=\tiny] {} (ex_stage);
+        % Hazard Detection connections - increased bend to avoid overlap
+        \draw[control] (idex) to[bend left=5] (hazard);
+        \draw[control] (exmem) to[bend left=5] (hazard);
+        \draw[control] (hazard) to[bend right=30, looseness=1.2] node[left, font=\tiny] {} (if_stage);
+        \draw[control] (hazard) to[bend right=20, looseness=1.1] node[left, font=\tiny] {} (id_stage);
+        \draw[control] (hazard) to[bend left=20, looseness=1.1] node[right, font=\tiny] {} (ex_stage);
         
-        % Writeback MUX
-        \draw[signal] (memwb) -- (wb_mux);
-        \draw[signal] (exmem) to[bend right=40] node[below, font=\tiny] {} (wb_mux);
-        \draw[signal] (memwb) to[bend left=25] node[above, font=\tiny] {} (wb_mux);
+        % Writeback MUX - increased bend to avoid overlap
+        \draw[signal] (memwb) to[bend right=5] (wb_mux);
+        \draw[signal] (exmem) to[bend right=50, looseness=1.3] node[below, font=\tiny] {} (wb_mux);
+        \draw[signal] (memwb) to[bend left=30, looseness=1.2] node[above, font=\tiny] {} (wb_mux);
         
     \end{tikzpicture}
     \caption{Complete block diagram of the five-stage pipelined RISC-V processor showing all major components, pipeline registers, forwarding paths, hazard detection, and branch prediction.}
@@ -317,7 +317,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \centering
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.5cm,
+        node distance=2cm,
         every node/.style={align=center},
         comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=purple!10, text centered, align=center},
         mem/.style={rectangle, draw, minimum width=3cm, minimum height=2cm, fill=blue!15, text centered, align=center},
@@ -327,20 +327,20 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     ]
         % IF Stage
         \node[comp] (if_pc) {IF Stage\\PC};
-        \node[logic, right=1.5cm of if_pc] (index_gen) {Index\\Generator};
-        \node[logic, below=0.5cm of index_gen] (tag_gen) {Tag\\Generator};
+        \node[logic, right=2cm of if_pc] (index_gen) {Index\\Generator};
+        \node[logic, below=0.8cm of index_gen] (tag_gen) {Tag\\Generator};
         
         % BTB Memory
-        \node[mem, right=2cm of index_gen] (btb) {BTB\\256 entries\\(Tag, Target, State)};
+        \node[mem, right=2.5cm of index_gen] (btb) {BTB\\256 entries\\(Tag, Target, State)};
         
         % Lookup logic
-        \node[logic, right=2cm of btb] (lookup) {Lookup\\Logic};
-        \node[comp, right=1.5cm of lookup] (pred_pc) {Predicted\\PC};
+        \node[logic, right=2.5cm of btb] (lookup) {Lookup\\Logic};
+        \node[comp, right=2cm of lookup] (pred_pc) {Predicted\\PC};
         
         % EX Stage update
-        \node[comp, below=2cm of if_pc] (ex_pc) {EX Stage\\PC};
-        \node[logic, right=1.5cm of ex_pc] (update_logic) {Update\\Logic};
-        \node[logic, below=0.5cm of update_logic] (fsm) {Two-bit\\FSM};
+        \node[comp, below=2.5cm of if_pc] (ex_pc) {EX Stage\\PC};
+        \node[logic, right=2cm of ex_pc] (update_logic) {Update\\Logic};
+        \node[logic, below=0.8cm of update_logic] (fsm) {Two-bit\\FSM};
         
         % Connections
         \draw[signal] (if_pc) -- (index_gen);
@@ -370,9 +370,9 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \centering
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.2cm,
+        node distance=1.5cm,
         every node/.style={align=center},
-        scale=0.85,
+        scale=0.8,
         comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=0.8cm, minimum height=0.6cm, fill=yellow!20, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=1.5cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny, align=center},
@@ -381,35 +381,35 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     ]
         % Inputs from ID/EX
         \node[comp] (idex_rs1) {ID/EX\\rs1\_data};
-        \node[comp, below=0.5cm of idex_rs1] (idex_rs2) {ID/EX\\rs2\_data};
-        \node[comp, below=0.5cm of idex_rs2] (idex_imm) {ID/EX\\imm};
-        \node[comp, below=0.5cm of idex_imm] (idex_pc) {ID/EX\\pc};
+        \node[comp, below=0.8cm of idex_rs1] (idex_rs2) {ID/EX\\rs2\_data};
+        \node[comp, below=0.8cm of idex_rs2] (idex_imm) {ID/EX\\imm};
+        \node[comp, below=0.8cm of idex_imm] (idex_pc) {ID/EX\\pc};
         
         % Forwarding MUXes
-        \node[mux, right=1.5cm of idex_rs1] (mux_rs1) {MUX};
-        \node[mux, right=1.5cm of idex_rs2] (mux_rs2) {MUX};
+        \node[mux, right=2cm of idex_rs1] (mux_rs1) {MUX};
+        \node[mux, right=2cm of idex_rs2] (mux_rs2) {MUX};
         
         % Forwarded data
-        \node[comp, right=1.5cm of mux_rs1] (forward_rs1) {Forwarded\\rs1};
-        \node[comp, right=1.5cm of mux_rs2] (forward_rs2) {Forwarded\\rs2};
+        \node[comp, right=2cm of mux_rs1] (forward_rs1) {Forwarded\\rs1};
+        \node[comp, right=2cm of mux_rs2] (forward_rs2) {Forwarded\\rs2};
         
         % ALU source MUXes
-        \node[mux, right=1.5cm of forward_rs1] (mux_alu_a) {MUX\\A};
-        \node[mux, right=1.5cm of forward_rs2] (mux_alu_b) {MUX\\B};
+        \node[mux, right=2cm of forward_rs1] (mux_alu_a) {MUX\\A};
+        \node[mux, right=2cm of forward_rs2] (mux_alu_b) {MUX\\B};
         
         % ALU
-        \node[comp, right=1.5cm of mux_alu_a, yshift=-0.4cm] (alu) {ALU};
+        \node[comp, right=2cm of mux_alu_a, yshift=-0.5cm] (alu) {ALU};
         
         % Branch compare
-        \node[logic, above=1cm of alu] (branch_comp) {Branch\\Compare};
+        \node[logic, above=1.2cm of alu] (branch_comp) {Branch\\Compare};
         
         % ALU result
-        \node[comp, right=1.5cm of alu] (alu_result) {ALU\\Result};
+        \node[comp, right=2cm of alu] (alu_result) {ALU\\Result};
         
         % Target calculation
-        \node[logic, below=1cm of alu] (target_calc) {Target\\Calc};
-        \node[comp, right=1.5cm of target_calc] (branch_target) {Branch\\Target};
-        \node[comp, below=0.5cm of branch_target] (jump_target) {Jump\\Target};
+        \node[logic, below=1.2cm of alu] (target_calc) {Target\\Calc};
+        \node[comp, right=2cm of target_calc] (branch_target) {Branch\\Target};
+        \node[comp, below=0.8cm of branch_target] (jump_target) {Jump\\Target};
         
         % Connections
         \draw[signal] (idex_rs1) -- (mux_rs1);
@@ -431,14 +431,14 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \draw[signal] (target_calc) -- (branch_target);
         \draw[signal] (target_calc) -- (jump_target);
         
-        % Forwarding inputs (dashed)
-        \node[comp, above=2cm of mux_rs1, xshift=1cm] (mem_alu) {MEM\\ALU result};
-        \node[comp, above=1cm of mem_alu] (wb_data) {WB\\reg wdata};
+        % Forwarding inputs (dashed) - increased spacing
+        \node[comp, above=2.5cm of mux_rs1, xshift=1.5cm] (mem_alu) {MEM\\ALU result};
+        \node[comp, above=1.2cm of mem_alu] (wb_data) {WB\\reg wdata};
         
-        \draw[signal, dashed, blue] (mem_alu) to[bend right=20] (mux_rs1);
-        \draw[signal, dashed, blue] (mem_alu) to[bend right=20] (mux_rs2);
-        \draw[signal, dashed, blue] (wb_data) to[bend right=30] (mux_rs1);
-        \draw[signal, dashed, blue] (wb_data) to[bend right=30] (mux_rs2);
+        \draw[signal, dashed, blue] (mem_alu) to[bend right=25, looseness=1.2] (mux_rs1);
+        \draw[signal, dashed, blue] (mem_alu) to[bend right=25, looseness=1.2] (mux_rs2);
+        \draw[signal, dashed, blue] (wb_data) to[bend right=35, looseness=1.3] (mux_rs1);
+        \draw[signal, dashed, blue] (wb_data) to[bend right=35, looseness=1.3] (mux_rs2);
         
     \end{tikzpicture}
     \caption{EX Stage detailed block diagram showing ALU, forwarding MUXes, branch comparison, and target calculation.}
@@ -518,7 +518,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \centering
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.5cm,
+        node distance=2cm,
         every node/.style={align=center},
         comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20, align=center},
@@ -527,19 +527,19 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     ]
         % Current PC
         \node[comp] (pc) {PC};
-        \node[comp, right=1.5cm of pc] (pc_plus4) {PC + 4};
+        \node[comp, right=2cm of pc] (pc_plus4) {PC + 4};
         
         % BTB prediction
-        \node[comp, above=1.5cm of pc_plus4] (btb_pc) {BTB\\Predicted PC};
-        \node[logic, left=1.5cm of btb_pc] (btb_hit) {BTB\\Hit?};
+        \node[comp, above=2cm of pc_plus4] (btb_pc) {BTB\\Predicted PC};
+        \node[logic, left=2cm of btb_pc] (btb_hit) {BTB\\Hit?};
         
         % Misprediction correction
-        \node[comp, below=1.5cm of pc_plus4] (corrected_pc) {Corrected\\PC};
-        \node[logic, left=1.5cm of corrected_pc] (mispred) {Misprediction?};
+        \node[comp, below=2cm of pc_plus4] (corrected_pc) {Corrected\\PC};
+        \node[logic, left=2cm of corrected_pc] (mispred) {Misprediction?};
         
         % PC selection MUX
-        \node[mux, right=2cm of pc_plus4] (pc_mux) {PC\\MUX};
-        \node[comp, right=1.5cm of pc_mux] (pc_next) {PC\\Next};
+        \node[mux, right=2.5cm of pc_plus4] (pc_mux) {PC\\MUX};
+        \node[comp, right=2cm of pc_mux] (pc_next) {PC\\Next};
         
         % Connections
         \draw[signal] (pc) -- (pc_plus4);
