@@ -15,63 +15,13 @@ module imem_sync (
     logic [ADDR_WIDTH-1:0] byte_addr;
 
     initial begin
-        integer fd;
-        integer code;
-        logic [31:0] word;
-        integer addr_idx;
-        string  line_buf;  // buffer for skipping malformed lines
 `ifdef DEMO_MEM
         // Demo mode: load small test program
         $readmemh("../02_test/demo.mem", mem);
 `else
-        // 1) Try server-preferred isa.mem (byte-per-line)
-        fd = $fopen("../02_test/isa.mem", "r");
-        if (fd) begin
-            $display("[IMEM_SYNC] Loading ../02_test/isa.mem");
-            $fclose(fd);
-            $readmemh("../02_test/isa.mem", mem);
-        end else begin
-            // 2) Try word-wide isa_4b.hex (32-bit/line) - preferred format
-            fd = $fopen("../02_test/isa_4b.hex", "r");
-            if (fd) begin
-                $display("[IMEM_SYNC] ../02_test/isa.mem not found. Loading ../02_test/isa_4b.hex with manual word-to-byte unpacking");
-                addr_idx = 0;
-                while (!$feof(fd) && (addr_idx + 3) < MEM_SIZE) begin
-                    code = $fscanf(fd, "%h", word);
-                    if (code == 1) begin
-                        // Store in memory order that matches readback
-                        // When reading: {mem[addr+3], mem[addr+2], mem[addr+1], mem[addr]}
-                        // So for word 0x00007137:
-                        // mem[0]=0x37, mem[1]=0x71, mem[2]=0x00, mem[3]=0x00
-                        // Read back: {0x00, 0x00, 0x71, 0x37} = 0x00007137
-                        mem[addr_idx+0] = word[7:0];
-                        mem[addr_idx+1] = word[15:8];
-                        mem[addr_idx+2] = word[23:16];
-                        mem[addr_idx+3] = word[31:24];
-                        addr_idx = addr_idx + 4;
-                    end else begin
-                        // Skip malformed line
-                        void'($fgets(line_buf, fd));
-                    end
-                end
-                $fclose(fd);
-                $display("[IMEM_SYNC] Loaded %0d words from isa_4b.hex", addr_idx/4);
-                // Debug: print first few instructions
-                $display("[IMEM_SYNC] First instruction at 0x00: %02h%02h%02h%02h", mem[3], mem[2], mem[1], mem[0]);
-                $display("[IMEM_SYNC] Second instruction at 0x04: %02h%02h%02h%02h", mem[7], mem[6], mem[5], mem[4]);
-                $display("[IMEM_SYNC] Third instruction at 0x08: %02h%02h%02h%02h", mem[11], mem[10], mem[9], mem[8]);
-            end else begin
-                // 3) Last resort: byte-wide isa_1b.hex (Milestone 2/3 common format)
-                fd = $fopen("../02_test/isa_1b.hex", "r");
-                if (fd) begin
-                    $display("[IMEM_SYNC] Loading ../02_test/isa_1b.hex");
-                    $fclose(fd);
-                    $readmemh("../02_test/isa_1b.hex", mem);
-                end else begin
-                    $display("[IMEM_SYNC] ERROR: No isa.mem / isa_4b.hex / isa_1b.hex found");
-                end
-            end
-        end
+        // Load isa_1b.hex (byte-per-line format, little-endian)
+        $display("[IMEM_SYNC] Loading ../02_test/isa_1b.hex");
+        $readmemh("../02_test/isa_1b.hex", mem);
 `endif
     end
 
@@ -89,4 +39,3 @@ module imem_sync (
     end
 
 endmodule
-

@@ -76,7 +76,8 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : result
-      if (o_insn_vld && ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20))) begin
+      // Match milestone-2 baseline: check PC only
+      if ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20)) begin
         $display("\nResult");
         $display("");
         if (num_cycle != 0) $display("IPC = %1.2f", num_insn/num_cycle);
