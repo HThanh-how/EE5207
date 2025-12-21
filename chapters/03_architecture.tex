@@ -9,7 +9,7 @@ but introduces pipeline stages, hazard detection, and forwarding to improve thro
 
 Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined architecture.
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \includegraphics[width=0.85\textwidth]{docs/milestone-3/figure1.png}
     \caption{Pipelined processor with hazard detection, forwarding, and branch signals (\texttt{o\_ctrl}, \texttt{o\_mispred}).}
@@ -18,7 +18,7 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
 
 \section{Milestone 3 Pipelined Overview}
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
         stage/.style={rectangle, draw, rounded corners, minimum width=2.0cm, minimum height=1.0cm, fill=blue!8},
@@ -254,7 +254,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \subsection{Hazard Detection Unit Block Diagram}
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
         >=stealth,
@@ -297,7 +297,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \subsection{Branch Predictor and BTB Block Diagram}
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
         >=stealth,
