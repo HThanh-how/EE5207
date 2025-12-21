@@ -240,8 +240,8 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \draw[signal] (wb_data) -- (mux_a);
         \draw[signal] (wb_data) -- (mux_b);
         
-        \draw[signal, dashed] (forward_logic) -- node[left, label] {forward\_a[1:0]} (mux_a);
-        \draw[signal, dashed] (forward_logic) -- node[left, label] {forward\_b[1:0]} (mux_b);
+        \draw[signal, dashed] (forward_logic) -- node[left, label] {forward\_a(1:0)} (mux_a);
+        \draw[signal, dashed] (forward_logic) -- node[left, label] {forward\_b(1:0)} (mux_b);
         
         \draw[signal] (mux_a) -- (forward_rs1);
         \draw[signal] (mux_b) -- (forward_rs2);
