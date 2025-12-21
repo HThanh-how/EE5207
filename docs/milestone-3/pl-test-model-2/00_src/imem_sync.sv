@@ -17,6 +17,7 @@ module imem_sync (
     initial begin
         integer fd;
         integer code;
+        integer word_int;  // Read as integer first
         logic [31:0] word;
         integer addr_idx;
         string  line_buf;  // buffer for skipping malformed lines
@@ -44,8 +45,10 @@ module imem_sync (
                     $display("[IMEM_SYNC] Loading ../02_test/isa_4b.hex with manual word-to-byte unpacking");
                     addr_idx = 0;
                     while (!$feof(fd) && (addr_idx + 3) < MEM_SIZE) begin
-                        code = $fscanf(fd, "%h\n", word);
+                        code = $fscanf(fd, "%h", word_int);
                         if (code == 1) begin
+                            // Cast integer to 32-bit unsigned logic (treat as unsigned)
+                            word = word_int[31:0];
                             // Little-endian: byte 0 is least-significant
                             mem[addr_idx+0] = word[7:0];
                             mem[addr_idx+1] = word[15:8];
