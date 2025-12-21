@@ -55,7 +55,7 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
 
 \section{Block Diagram of Pipelined Processor}
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \resizebox{\textwidth}{!}{%
     \begin{tikzpicture}[
@@ -179,7 +179,7 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         \draw[signal] (exmem) to[bend right=50] node[below, font=\tiny] {alu\_result} (wb_mux);
         \draw[signal] (memwb) to[bend left=30] node[above, font=\tiny] {pc+4} (wb_mux);
         
-    \end{tikzpicture}%
+    \end{tikzpicture}
     }
     \caption{Complete block diagram of the five-stage pipelined RISC-V processor showing all major components, pipeline registers, forwarding paths, hazard detection, and branch prediction.}
     \label{fig:pipeline_block_diagram}
@@ -347,7 +347,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \subsection{EX Stage Detailed Block Diagram}
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \resizebox{0.9\textwidth}{!}{%
     \begin{tikzpicture}[
@@ -420,7 +420,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \draw[signal, dashed, blue] (wb_data) to[bend right=30] (mux_rs1);
         \draw[signal, dashed, blue] (wb_data) to[bend right=30] (mux_rs2);
         
-    \end{tikzpicture}%
+    \end{tikzpicture}
     }
     \caption{EX Stage detailed block diagram showing ALU, forwarding MUXes, branch comparison, and target calculation.}
     \label{fig:ex_stage_detail}
@@ -428,7 +428,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \subsection{MEM Stage and I/O Mapping Block Diagram}
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \resizebox{0.85\textwidth}{!}{%
     \begin{tikzpicture}[
@@ -483,7 +483,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \draw[signal] (io_sw) -- (read_mux);
         \draw[signal] (read_mux) -- (mem_rdata);
         
-    \end{tikzpicture}%
+    \end{tikzpicture}
     }
     \caption{MEM Stage block diagram showing DMEM access and I/O memory mapping with address decoder.}
     \label{fig:mem_stage_detail}
@@ -491,7 +491,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \subsection{PC Selection Logic Block Diagram}
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
         >=stealth,
