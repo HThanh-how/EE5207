@@ -17,7 +17,6 @@ module imem_sync (
     initial begin
         integer fd;
         integer code;
-        // integer word_int; // Removed
         logic [31:0] word;
         integer addr_idx;
         string  line_buf;  // buffer for skipping malformed lines
