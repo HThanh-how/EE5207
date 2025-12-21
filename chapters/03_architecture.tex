@@ -27,14 +27,14 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         arrow/.style={->, thick}
     ]
         \node[stage] (if) {IF};
-        \node[reg, right=1.5cm of if] (ifid) {IF/ID};
-        \node[stage, right=1.5cm of ifid] (id) {ID};
-        \node[reg, right=1.5cm of id] (idex) {ID/EX};
-        \node[stage, right=1.5cm of idex] (ex) {EX};
-        \node[reg, right=1.5cm of ex] (exmem) {EX/MEM};
-        \node[stage, right=1.5cm of exmem] (mem) {MEM};
-        \node[reg, right=1.5cm of mem] (memwb) {MEM/WB};
-        \node[stage, right=1.5cm of memwb] (wb) {WB};
+        \node[reg, right=1.8cm of if] (ifid) {IF/ID};
+        \node[stage, right=1.8cm of ifid] (id) {ID};
+        \node[reg, right=1.8cm of id] (idex) {ID/EX};
+        \node[stage, right=1.8cm of idex] (ex) {EX};
+        \node[reg, right=1.8cm of ex] (exmem) {EX/MEM};
+        \node[stage, right=1.8cm of exmem] (mem) {MEM};
+        \node[reg, right=1.8cm of mem] (memwb) {MEM/WB};
+        \node[stage, right=1.8cm of memwb] (wb) {WB};
 
         % Main pipeline flow
         \draw[arrow] (if) -- (ifid);
@@ -46,15 +46,15 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         \draw[arrow] (mem) -- (memwb);
         \draw[arrow] (memwb) -- (wb);
 
-        % Forwarding paths - moved further down to avoid overlap
-        \draw[arrow, bend right=45, looseness=1.2] (exmem) to node[below, font=\small, yshift=-0.3cm]{fwd} (idex);
-        \draw[arrow, bend right=55, looseness=1.3] (memwb) to node[below, font=\small, yshift=-0.4cm]{fwd} (idex);
+        % Forwarding paths - increased spacing
+        \draw[arrow, bend right=50, looseness=1.5] (exmem) to node[below, font=\footnotesize, yshift=-0.4cm]{fwd} (idex);
+        \draw[arrow, bend right=60, looseness=1.6] (memwb) to node[below, font=\footnotesize, yshift=-0.5cm]{fwd} (idex);
         
-        % Flush/PC correction - moved higher to avoid overlap
-        \draw[arrow, bend left=45, red, thick, looseness=1.2] (ex) to node[above, font=\small, yshift=0.3cm]{flush/pc\_corr} (if);
+        % Flush/PC correction - increased spacing
+        \draw[arrow, bend left=50, red, thick, looseness=1.5] (ex) to node[above, font=\footnotesize, yshift=0.4cm]{flush/pc\_corr} (if);
         
-        % Branch prediction - moved higher and adjusted
-        \draw[arrow, bend left=50, dashed, thick, looseness=1.3] (idex) to node[above, font=\small, yshift=0.4cm]{pred PC} (if);
+        % Branch prediction - increased spacing
+        \draw[arrow, bend left=55, dashed, thick, looseness=1.6] (idex) to node[above, font=\footnotesize, yshift=0.5cm]{pred PC} (if);
     \end{tikzpicture}
     \caption{Five-stage pipeline flow diagram showing forwarding paths (fwd), flush on misprediction, and PC correction.}
     \label{fig:pipeline_tikz}
@@ -69,7 +69,7 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         >=stealth,
         node distance=0.8cm and 1.2cm,
         every node/.style={align=center},
-        scale=0.7,
+        scale=0.65,
         stage/.style={rectangle, draw, rounded corners, minimum width=2.0cm, minimum height=1.2cm, fill=blue!10, text centered, align=center, font=\footnotesize},
         module/.style={rectangle, draw, rounded corners, minimum width=1.6cm, minimum height=0.8cm, fill=green!10, text centered, align=center, font=\tiny},
         reg/.style={rectangle, draw, minimum width=1.4cm, minimum height=0.6cm, fill=orange!15, text centered, font=\tiny, align=center},
@@ -212,6 +212,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \subsection{Forwarding Unit Block Diagram}
 
+\begin{landscape}
 \begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
@@ -261,9 +262,11 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \caption{Forwarding Unit block diagram showing data paths from MEM and WB stages to EX stage MUXes.}
     \label{fig:forwarding_unit}
 \end{figure}
+\end{landscape}
 
 \subsection{Hazard Detection Unit Block Diagram}
 
+\begin{landscape}
 \begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
@@ -305,6 +308,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \caption{Hazard Detection Unit block diagram showing detection logic for load-use and control hazards.}
     \label{fig:hazard_detection}
 \end{figure}
+\end{landscape}
 
 \subsection{Branch Predictor and BTB Block Diagram}
 
@@ -366,9 +370,9 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \centering
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.0cm,
+        node distance=1.2cm,
         every node/.style={align=center},
-        scale=0.9,
+        scale=0.85,
         comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=0.8cm, minimum height=0.6cm, fill=yellow!20, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=1.5cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny, align=center},
@@ -449,9 +453,9 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \centering
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.5cm,
+        node distance=1.8cm,
         every node/.style={align=center},
-        scale=0.9,
+        scale=0.85,
         comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny, align=center},
