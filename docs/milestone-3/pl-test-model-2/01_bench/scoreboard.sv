@@ -28,6 +28,8 @@ module scoreboard(
   real num_mispred;    // Number of Misprediction
   real ipc;            // Instructino Per Cycle
   real misprd_rate;    // Misprediction Rate
+  
+  logic [7:0] prev_ledr;  // Previous LEDR value to detect changes
 
   // Display test name
   initial begin
@@ -41,12 +43,14 @@ module scoreboard(
         num_ctrl    <= '0;
         num_insn    <= '0;
         num_mispred <= '0;
+        prev_ledr   <= 8'b0;
       end
       else begin
         num_cycle   <=              num_cycle   + 1;
         num_ctrl    <= o_ctrl     ? num_ctrl    + 1 : num_ctrl;
         num_insn    <= o_insn_vld ? num_insn    + 1 : num_insn;
         num_mispred <= o_mispred  ? num_mispred + 1 : num_mispred;
+        prev_ledr   <= o_io_ledr[7:0];
       end
   end
 
@@ -55,7 +59,8 @@ module scoreboard(
       if (o_insn_vld) begin
           $display("Time: %0t | Commit PC: %h", $time, o_pc_debug);
       end
-      if (o_insn_vld && (o_pc_debug == 32'h18)) begin
+      // Print LEDR message when it changes and is non-zero
+      if (o_insn_vld && (o_io_ledr[7:0] != prev_ledr) && (o_io_ledr[7:0] != 8'b0)) begin
           $write("%s", o_io_ledr[7:0]);
       end
   end
