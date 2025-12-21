@@ -27,14 +27,14 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         arrow/.style={->, thick}
     ]
         \node[stage] (if) {IF};
-        \node[reg, right=0.9cm of if] (ifid) {IF/ID};
-        \node[stage, right=0.9cm of ifid] (id) {ID};
-        \node[reg, right=0.9cm of id] (idex) {ID/EX};
-        \node[stage, right=0.9cm of idex] (ex) {EX};
-        \node[reg, right=0.9cm of ex] (exmem) {EX/MEM};
-        \node[stage, right=0.9cm of exmem] (mem) {MEM};
-        \node[reg, right=0.9cm of mem] (memwb) {MEM/WB};
-        \node[stage, right=0.9cm of memwb] (wb) {WB};
+        \node[reg, right=1.2cm of if] (ifid) {IF/ID};
+        \node[stage, right=1.2cm of ifid] (id) {ID};
+        \node[reg, right=1.2cm of id] (idex) {ID/EX};
+        \node[stage, right=1.2cm of idex] (ex) {EX};
+        \node[reg, right=1.2cm of ex] (exmem) {EX/MEM};
+        \node[stage, right=1.2cm of exmem] (mem) {MEM};
+        \node[reg, right=1.2cm of mem] (memwb) {MEM/WB};
+        \node[stage, right=1.2cm of memwb] (wb) {WB};
 
         \draw[arrow] (if) -- (ifid);
         \draw[arrow] (ifid) -- (id);
@@ -45,12 +45,12 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         \draw[arrow] (mem) -- (memwb);
         \draw[arrow] (memwb) -- (wb);
 
-        \draw[arrow, bend right=25] (exmem) to node[below]{fwd} (idex);
-        \draw[arrow, bend right=35] (memwb) to node[below]{fwd} (idex);
-        \draw[arrow, bend left=30, red] (ex) to node[above]{flush/pc\_corr} (if);
-        \draw[arrow, bend left=35, dashed] (if) to node[above]{pred PC} (ex);
+        \draw[arrow, bend right=30] (exmem) to node[below, font=\small]{fwd} (idex);
+        \draw[arrow, bend right=40] (memwb) to node[below, font=\small]{fwd} (idex);
+        \draw[arrow, bend left=35, red, thick] (ex) to node[above, font=\small]{flush/pc\_corr} (if);
+        \draw[arrow, bend left=40, dashed, thick] (idex) to node[above, font=\small]{pred PC} (if);
     \end{tikzpicture}
-    \caption{Luồng 5 stage, forwarding (fwd), flush khi mispredict, PC correction.}
+    \caption{Five-stage pipeline flow diagram showing forwarding paths (fwd), flush on misprediction, and PC correction.}
     \label{fig:pipeline_tikz}
 \end{figure}
 
