@@ -29,13 +29,9 @@ module scoreboard(
   real ipc;            // Instructino Per Cycle
   real misprd_rate;    // Misprediction Rate
 
-  // Track previous LEDR value for method testing
-  logic [31:0] prev_ledr;
-
   // Display test name
   initial begin
     $display("\nPIPELINE - ISA tests\n");
-    prev_ledr = 32'b0;
   end
 
   // Counters for statistics
@@ -45,76 +41,25 @@ module scoreboard(
         num_ctrl    <= '0;
         num_insn    <= '0;
         num_mispred <= '0;
-        prev_ledr   <= 32'b0;
       end
       else begin
         num_cycle   <=              num_cycle   + 1;
         num_ctrl    <= o_ctrl     ? num_ctrl    + 1 : num_ctrl;
         num_insn    <= o_insn_vld ? num_insn    + 1 : num_insn;
         num_mispred <= o_mispred  ? num_mispred + 1 : num_mispred;
-        prev_ledr   <= o_io_ledr;
       end
   end
 
-  // ============================================
-  // ORIGINAL MILESTONE 3 CODE (from milestone_3_code)
-  // ============================================
+  // Print PASS/ERROR messages from test program via LEDR
   always @(negedge i_clk) begin : debug
       if (o_insn_vld && (o_pc_debug == 32'h18)) begin
           $write("%s", o_io_ledr[7:0]);
       end
   end
 
-  // ============================================
-  // MILESTONE 2 STYLE (no o_insn_vld check)
-  // ============================================
-  always @(negedge i_clk) begin : debug_m2
-      if (o_pc_debug == 32'h18) begin
-          $write("%s", o_io_ledr[7:0]);
-      end
-  end
-
-  // ============================================
-  // CHECK LEDR CHANGE (any PC, any time)
-  // ============================================
-  always @(negedge i_clk) begin : debug_ledr_change
-      if (i_reset) begin
-          if (o_io_ledr[7:0] != prev_ledr[7:0] && o_io_ledr[7:0] != 8'b0) begin
-              $write("%s", o_io_ledr[7:0]);
-          end
-      end
-  end
-
-  // ============================================
-  // CHECK AT DIFFERENT PC VALUES (accounting for pipeline delay)
-  // ============================================
-  always @(negedge i_clk) begin : debug_pc_range
-      if (i_reset) begin
-          // Check PC 0x14 (before 0x18)
-          if (o_pc_debug == 32'h14 && o_io_ledr[7:0] != 8'b0) begin
-              $write("%s", o_io_ledr[7:0]);
-          end
-          // Check PC 0x1c (after 0x18, when instruction is in MEM stage)
-          if (o_pc_debug == 32'h1c && o_io_ledr[7:0] != 8'b0) begin
-              $write("%s", o_io_ledr[7:0]);
-          end
-          // Check PC 0x20 (after 0x1c)
-          if (o_pc_debug == 32'h20 && o_io_ledr[7:0] != 8'b0) begin
-              $write("%s", o_io_ledr[7:0]);
-          end
-          // Check PC range 0x10-0x24
-          if (o_pc_debug >= 32'h10 && o_pc_debug <= 32'h24 && o_io_ledr[7:0] != 8'b0 && o_io_ledr[7:0] != prev_ledr[7:0]) begin
-              $write("%s", o_io_ledr[7:0]);
-          end
-      end
-  end
-
   // Print results and finish at PC 0x1c or 0x20
   always @(negedge i_clk) begin : result
       if (o_insn_vld && ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20))) begin
-          $display("");  // Newline after PASS/ERROR messages
-          
-          // Print statistics
           $display("\n=================== Result ===================");
           if (num_cycle != 0) $display("Total Clock Cycles Executed = %1.0f", num_cycle);
           else                $display("Total Clock Cycles Executed = N/A");

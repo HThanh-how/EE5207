@@ -53,6 +53,154 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
     \label{fig:pipeline_tikz}
 \end{figure}
 
+\section{Block Diagram of Pipelined Processor}
+
+\begin{figure}[h]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.5cm and 2cm,
+        stage/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1.5cm, fill=blue!10, text centered},
+        module/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=1cm, fill=green!10, text centered},
+        reg/.style={rectangle, draw, minimum width=1.8cm, minimum height=0.8cm, fill=orange!15, text centered, font=\small},
+        mux/.style={rectangle, draw, minimum width=0.8cm, minimum height=0.8cm, fill=yellow!20},
+        unit/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=1cm, fill=purple!10, text centered, font=\small},
+        signal/.style={->, thick},
+        control/.style={->, dashed, red, thick},
+        forward/.style={->, dashed, blue, thick}
+    ]
+        % IF Stage
+        \node[stage] (if_stage) {IF Stage};
+        \node[module, below=0.5cm of if_stage] (imem) {IMEM\\Sync};
+        \node[unit, right=1cm of if_stage] (btb) {BTB\\256 entries};
+        \node[unit, above=0.5cm of if_stage] (pc) {PC};
+        
+        % IF/ID Register
+        \node[reg, right=1.5cm of if_stage] (ifid) {IF/ID\\Reg};
+        
+        % ID Stage
+        \node[stage, right=1.5cm of ifid] (id_stage) {ID Stage};
+        \node[module, below=0.5cm of id_stage] (control) {Control\\Unit};
+        \node[module, below=0.5cm of control] (regfile) {Register\\File};
+        \node[module, below=0.5cm of regfile] (imm_gen) {Immediate\\Generator};
+        
+        % ID/EX Register
+        \node[reg, right=1.5cm of id_stage] (idex) {ID/EX\\Reg};
+        
+        % EX Stage
+        \node[stage, right=1.5cm of idex] (ex_stage) {EX Stage};
+        \node[module, below=0.5cm of ex_stage] (alu) {ALU};
+        \node[unit, left=1cm of ex_stage] (forward_unit) {Forwarding\\Unit};
+        \node[unit, above=0.5cm of ex_stage] (branch_comp) {Branch\\Compare};
+        
+        % EX/MEM Register
+        \node[reg, right=1.5cm of ex_stage] (exmem) {EX/MEM\\Reg};
+        
+        % MEM Stage
+        \node[stage, right=1.5cm of exmem] (mem_stage) {MEM Stage};
+        \node[module, below=0.5cm of mem_stage] (dmem) {DMEM\\Sync};
+        \node[module, below=0.5cm of dmem] (io_map) {I/O\\Mapping};
+        
+        % MEM/WB Register
+        \node[reg, right=1.5cm of mem_stage] (memwb) {MEM/WB\\Reg};
+        
+        % WB Stage
+        \node[stage, right=1.5cm of memwb] (wb_stage) {WB Stage};
+        \node[mux, below=0.5cm of wb_stage] (wb_mux) {MUX};
+        
+        % Hazard Detection Unit
+        \node[unit, above=2cm of ex_stage] (hazard) {Hazard\\Detection};
+        
+        % Main pipeline flow
+        \draw[signal] (if_stage) -- (ifid);
+        \draw[signal] (ifid) -- (id_stage);
+        \draw[signal] (id_stage) -- (idex);
+        \draw[signal] (idex) -- (ex_stage);
+        \draw[signal] (ex_stage) -- (exmem);
+        \draw[signal] (exmem) -- (mem_stage);
+        \draw[signal] (mem_stage) -- (memwb);
+        \draw[signal] (memwb) -- (wb_stage);
+        \draw[signal] (wb_stage) -- (wb_mux);
+        
+        % PC connections
+        \draw[signal] (pc) -- (if_stage);
+        \draw[signal] (if_stage) -- (imem);
+        \draw[signal] (imem) -- (ifid);
+        \draw[signal, bend left=30] (ex_stage) to node[above, font=\tiny] {corrected\_pc} (pc);
+        
+        % BTB connections
+        \draw[signal, dashed] (if_stage) -- (btb);
+        \draw[signal, dashed] (btb) -- (if_stage);
+        \draw[signal, dashed, bend left=20] (ex_stage) to node[above, font=\tiny] {update} (btb);
+        
+        % Control Unit connections
+        \draw[signal] (ifid) -- (control);
+        \draw[control] (control) -- (idex);
+        \draw[control] (control) -- (regfile);
+        
+        % Register File connections
+        \draw[signal] (ifid) -- (regfile);
+        \draw[signal] (regfile) -- (idex);
+        \draw[signal] (wb_mux) -- (regfile);
+        
+        % Immediate Generator
+        \draw[signal] (ifid) -- (imm_gen);
+        \draw[signal] (imm_gen) -- (idex);
+        
+        % Forwarding connections
+        \draw[forward] (exmem) to[bend right=30] node[below, font=\tiny] {mem\_alu\_result} (forward_unit);
+        \draw[forward] (memwb) to[bend right=40] node[below, font=\tiny] {wb\_reg\_wdata} (forward_unit);
+        \draw[forward] (forward_unit) -- (ex_stage);
+        
+        % ALU connections
+        \draw[signal] (idex) -- (alu);
+        \draw[signal] (alu) -- (exmem);
+        
+        % Branch comparison
+        \draw[signal] (idex) -- (branch_comp);
+        \draw[signal] (branch_comp) -- (ex_stage);
+        
+        % DMEM connections
+        \draw[signal] (exmem) -- (dmem);
+        \draw[signal] (dmem) -- (memwb);
+        \draw[signal] (exmem) -- (io_map);
+        \draw[signal] (io_map) -- (memwb);
+        
+        % Hazard Detection connections
+        \draw[control] (idex) -- (hazard);
+        \draw[control] (exmem) -- (hazard);
+        \draw[control] (hazard) to[bend right=30] node[left, font=\tiny] {stall/flush} (if_stage);
+        \draw[control] (hazard) to[bend right=20] node[left, font=\tiny] {stall/flush} (id_stage);
+        \draw[control] (hazard) to[bend left=20] node[right, font=\tiny] {flush} (ex_stage);
+        
+        % Writeback MUX
+        \draw[signal] (memwb) -- (wb_mux);
+        \draw[signal] (exmem) to[bend right=50] node[below, font=\tiny] {alu\_result} (wb_mux);
+        \draw[signal] (memwb) to[bend left=30] node[above, font=\tiny] {pc+4} (wb_mux);
+        
+    \end{tikzpicture}%
+    }
+    \caption{Complete block diagram of the five-stage pipelined RISC-V processor showing all major components, pipeline registers, forwarding paths, hazard detection, and branch prediction.}
+    \label{fig:pipeline_block_diagram}
+\end{figure}
+
+\subsection{Component Descriptions}
+
+The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the complete architecture of the pipelined processor:
+
+\begin{itemize}
+    \item \textbf{IF Stage}: Fetches instructions from IMEM using PC. BTB provides predicted PC for branch/jump instructions.
+    \item \textbf{ID Stage}: Decodes instruction using Control Unit, reads registers from Register File, and generates immediate values.
+    \item \textbf{EX Stage}: Executes ALU operations, performs branch comparison, and calculates branch/jump targets. Forwarding Unit resolves data hazards.
+    \item \textbf{MEM Stage}: Accesses DMEM for load/store operations and handles I/O memory mapping.
+    \item \textbf{WB Stage}: Writes results back to Register File via Writeback MUX.
+    \item \textbf{Pipeline Registers}: IF/ID, ID/EX, EX/MEM, MEM/WB store intermediate values between stages.
+    \item \textbf{Forwarding Unit}: Forwards data from MEM and WB stages to EX stage to resolve data hazards.
+    \item \textbf{Hazard Detection Unit}: Detects load-use hazards and control hazards, generates stall and flush signals.
+    \item \textbf{Branch Target Buffer (BTB)}: 256-entry buffer storing branch/jump targets and two-bit predictor states.
+\end{itemize}
+
 \section{Datapath Components}
 
 \subsection{Program Counter (PC)}

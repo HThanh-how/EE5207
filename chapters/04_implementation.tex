@@ -160,6 +160,130 @@ if (wb_reg_write && wb_enable && wb_rd_addr != 5'b0) begin
 end
 \end{lstlisting}
 
+\section{Two Pipeline Models}
+
+The Milestone 3 implementation provides two pipeline models for comparison:
+
+\subsection{Model 1: Non-Forwarding Pipeline}
+
+Model 1 (\texttt{pl-test-model-1}) implements a five-stage pipeline \textbf{without forwarding}:
+
+\begin{itemize}
+    \item \textbf{Forwarding Unit}: Disabled - all forwarding signals set to \texttt{2'b00}
+    \item \textbf{Hazard Detection}: Enhanced to detect and stall for all data hazards
+    \begin{itemize}
+        \item Data hazard (EX → ID): Stall IF and ID stages when instruction in ID depends on result from EX
+        \item Data hazard (MEM → ID): Stall IF and ID stages when instruction in ID depends on result from MEM
+        \item Load-use hazard: Stall 1 cycle when load in EX and dependent instruction in ID
+    \end{itemize}
+    \item \textbf{Performance}: Lower IPC due to frequent stalls, but simpler control logic
+    \item \textbf{Use Case}: Baseline comparison to demonstrate forwarding benefits
+\end{itemize}
+
+\begin{lstlisting}[language=Verilog, caption=Model 1: Forwarding disabled (\texttt{pl-test-model-1/pipelined.sv})]
+// Forwarding Unit - Always disabled
+always_comb begin
+    forward_a = 2'b00;  // No forwarding
+    forward_b = 2'b00;  // No forwarding
+end
+\end{lstlisting}
+
+\begin{lstlisting}[language=Verilog, caption=Model 1: Enhanced hazard detection for data hazards]
+// Data hazard detection (EX → ID)
+if (ex_reg_write && ex_enable && ex_rd_addr != 5'b0) begin
+    if ((id_rs1_addr == ex_rd_addr && id_reg_write) ||
+        (id_rs2_addr == ex_rd_addr && (id_mem_write || id_branch))) begin
+        stall_if = 1'b1;
+        stall_id = 1'b1;
+        flush_ex = 1'b1;
+    end
+end
+
+// Data hazard detection (MEM → ID)
+if (mem_reg_write && mem_enable && mem_rd_addr != 5'b0) begin
+    if ((id_rs1_addr == mem_rd_addr && id_reg_write) ||
+        (id_rs2_addr == mem_rd_addr && (id_mem_write || id_branch))) begin
+        stall_if = 1'b1;
+        stall_id = 1'b1;
+        flush_ex = 1'b1;
+    end
+end
+\end{lstlisting}
+
+\subsection{Model 2: Forwarding Pipeline}
+
+Model 2 (\texttt{pl-test-model-2}) implements a five-stage pipeline \textbf{with forwarding}:
+
+\begin{itemize}
+    \item \textbf{Forwarding Unit}: Active - forwards data from MEM and WB stages to EX stage
+    \begin{itemize}
+        \item Priority: MEM stage > WB stage
+        \item Resolves most data hazards without stalling
+    \end{itemize}
+    \item \textbf{Hazard Detection}: Simplified to only detect load-use hazards
+    \begin{itemize}
+        \item Load-use hazard: Stall 1 cycle when load in EX and dependent instruction in ID
+        \item Control hazard: Flush pipeline when branch/jump misprediction detected
+    \end{itemize}
+    \item \textbf{Performance}: Higher IPC due to reduced stalls
+    \item \textbf{Use Case}: Production implementation with optimal performance
+\end{itemize}
+
+\begin{lstlisting}[language=Verilog, caption=Model 2: Forwarding enabled (\texttt{pl-test-model-2/pipelined.sv})]
+// Forwarding Unit - Priority: MEM > WB
+always_comb begin
+    forward_a = 2'b00;
+    forward_b = 2'b00;
+    
+    // Forward from MEM stage (highest priority)
+    if (mem_reg_write && mem_enable && mem_rd_addr != 5'b0) begin
+        if (mem_rd_addr == ex_rs1_addr) forward_a = 2'b10;
+        if (mem_rd_addr == ex_rs2_addr) forward_b = 2'b10;
+    end
+    
+    // Forward from WB stage (if not forwarding from MEM)
+    if (wb_reg_write && wb_enable && wb_rd_addr != 5'b0) begin
+        if (forward_a == 2'b00 && wb_rd_addr == ex_rs1_addr) forward_a = 2'b01;
+        if (forward_b == 2'b00 && wb_rd_addr == ex_rs2_addr) forward_b = 2'b01;
+    end
+end
+\end{lstlisting}
+
+\subsection{Comparison of Models}
+
+Table~\ref{tab:model_comparison} compares the two pipeline models:
+
+\begin{table}[h]
+\centering
+\caption{Comparison of Model 1 (Non-Forwarding) and Model 2 (Forwarding)}
+\label{tab:model_comparison}
+\begin{tabular}{lll}
+\toprule
+\textbf{Feature} & \textbf{Model 1} & \textbf{Model 2} \\
+\midrule
+Forwarding Unit & Disabled & Enabled (MEM > WB) \\
+Data Hazard Resolution & Stall pipeline & Forward from MEM/WB \\
+Load-Use Hazard & Stall 1 cycle & Stall 1 cycle \\
+Control Hazard & Flush on mispredict & Flush on mispredict \\
+Branch Prediction & Two-bit + BTB & Two-bit + BTB \\
+BRAM Memory & Yes & Yes \\
+Expected IPC & Lower (more stalls) & Higher (fewer stalls) \\
+Use Case & Baseline comparison & Production \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Both models share the same:
+\begin{itemize}
+    \item Five-stage pipeline architecture (IF, ID, EX, MEM, WB)
+    \item Two-bit dynamic branch predictor with 256-entry BTB
+    \item BRAM-compatible synchronous memory (IMEM/DMEM)
+    \item Memory-mapped I/O system
+    \item Control unit and ALU implementations
+\end{itemize}
+
+The key difference is in how data hazards are resolved: Model 1 uses stalls, while Model 2 uses forwarding to achieve better performance.
+
 \subsection{Hazard Detection (Load-Use Stall)}
 \begin{lstlisting}[language=Verilog, caption=Load-use stall insertion]
 if (ex_is_load && ex_enable && ex_rd_addr != 5'b0) begin
