@@ -21,6 +21,7 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
 \begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
+        every node/.style={align=center},
         stage/.style={rectangle, draw, rounded corners, minimum width=2.0cm, minimum height=1.0cm, fill=blue!8},
         reg/.style={rectangle, draw, minimum width=1.5cm, minimum height=0.8cm, fill=orange!10},
         arrow/.style={->, thick}
@@ -60,6 +61,7 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
     \begin{tikzpicture}[
         >=stealth,
         node distance=1.2cm and 1.5cm,
+        every node/.style={align=center},
         scale=0.7,
         stage/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1.5cm, fill=blue!10, text centered, align=center},
         module/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=1cm, fill=green!10, text centered, align=center},
@@ -207,6 +209,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \begin{tikzpicture}[
         >=stealth,
         node distance=1.5cm,
+        every node/.style={align=center},
         comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=1cm, fill=blue!10, text centered, align=center},
         mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20, align=center},
         signal/.style={->, thick},
@@ -258,6 +261,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \begin{tikzpicture}[
         >=stealth,
         node distance=1.5cm,
+        every node/.style={align=center},
         comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=green!10, text centered, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=orange!20, text centered, font=\small, align=center},
         signal/.style={->, thick},
@@ -301,6 +305,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \begin{tikzpicture}[
         >=stealth,
         node distance=1.5cm,
+        every node/.style={align=center},
         comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=purple!10, text centered, align=center},
         mem/.style={rectangle, draw, minimum width=3cm, minimum height=2cm, fill=blue!15, text centered, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=yellow!20, text centered, font=\small, align=center},
@@ -313,7 +318,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \node[logic, below=0.5cm of index_gen] (tag_gen) {Tag\\Generator};
         
         % BTB Memory
-        \node[mem, right=2cm of index_gen] (btb) {BTB\\256 entries\\[Tag, Target, State]};
+        \node[mem, right=2cm of index_gen] (btb) {BTB\\256 entries\\(Tag, Target, State)};
         
         % Lookup logic
         \node[logic, right=2cm of btb] (lookup) {Lookup\\Logic};
@@ -351,6 +356,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \begin{tikzpicture}[
         >=stealth,
         node distance=1.0cm,
+        every node/.style={align=center},
         scale=0.75,
         comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=0.8cm, minimum height=0.6cm, fill=yellow!20, align=center},
@@ -431,6 +437,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \begin{tikzpicture}[
         >=stealth,
         node distance=1.2cm,
+        every node/.style={align=center},
         scale=0.8,
         comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20, align=center},
@@ -493,6 +500,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \begin{tikzpicture}[
         >=stealth,
         node distance=1.5cm,
+        every node/.style={align=center},
         comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny, align=center},
