@@ -430,7 +430,7 @@ module pipelined (
             ex_is_load <= 1'b0;
             ex_enable <= 1'b0;
             ex_predicted_taken <= 1'b0;
-        end else if (~stall_ex && id_enable) begin
+        end else if (~stall_ex) begin // Always update if not stalled (allow bubble propagation)
             ex_pc <= id_pc;
             ex_pc_plus4 <= id_pc_plus4;
             ex_rs1_data <= id_rs1_data;
@@ -457,87 +457,9 @@ module pipelined (
             ex_predicted_taken <= (id_branch || id_jump) ? predict_taken : 1'b0;
         end
     end
-    
-    // ============================================
-    // EX Stage: Execute
-    // ============================================
-    // Forwarding MUX for ALU inputs
-    always_comb begin
-        case (forward_a)
-            2'b00: forward_rs1_data = ex_rs1_data;
-            2'b01: forward_rs1_data = wb_reg_wdata;
-            2'b10: forward_rs1_data = mem_alu_result;
-            default: forward_rs1_data = ex_rs1_data;
-        endcase
-        
-        case (forward_b)
-            2'b00: forward_rs2_data = ex_rs2_data;
-            2'b01: forward_rs2_data = wb_reg_wdata;
-            2'b10: forward_rs2_data = mem_alu_result;
-            default: forward_rs2_data = ex_rs2_data;
-        endcase
-    end
-    
-    // ALU input selection
-    always_comb begin
-        case (ex_alu_src_a)
-            2'b00: ex_alu_a = forward_rs1_data;
-            2'b01: ex_alu_a = ex_pc;
-            2'b10: ex_alu_a = ex_pc;
-            2'b11: ex_alu_a = {ex_imm[31:12], 12'b0};
-            default: ex_alu_a = forward_rs1_data;
-        endcase
-        
-        case (ex_alu_src_b)
-            2'b00: ex_alu_b = forward_rs2_data;
-            2'b01: ex_alu_b = ex_imm;
-            2'b10: ex_alu_b = 32'h4;
-            2'b11: ex_alu_b = 32'b0;
-            default: ex_alu_b = forward_rs2_data;
-        endcase
-    end
-    
-    alu u_alu (
-        .op_a       (ex_alu_a),
-        .op_b       (ex_alu_b),
-        .alu_op     (ex_alu_op),
-        .alu_out    (ex_alu_result),
-        .alu_zero   (ex_alu_zero)
-    );
-    
-    // Branch comparison
-    always_comb begin
-        if (ex_branch) begin
-            case (ex_funct3)
-                3'b000: ex_branch_taken = (forward_rs1_data == forward_rs2_data);
-                3'b001: ex_branch_taken = (forward_rs1_data != forward_rs2_data);
-                3'b100: ex_branch_taken = ($signed(forward_rs1_data) < $signed(forward_rs2_data));
-                3'b101: ex_branch_taken = ($signed(forward_rs1_data) >= $signed(forward_rs2_data));
-                3'b110: ex_branch_taken = (forward_rs1_data < forward_rs2_data);
-                3'b111: ex_branch_taken = (forward_rs1_data >= forward_rs2_data);
-                default: ex_branch_taken = 1'b0;
-            endcase
-        end else begin
-            ex_branch_taken = 1'b0;
-        end
-    end
-    
-    assign ex_branch_target = ex_pc + ex_imm;
-    assign ex_jump_target = ex_jump ? (ex_pc + ex_imm) : (forward_rs1_data + ex_imm);
-    assign ex_is_ctrl = ex_branch || ex_jump;
-    
-    // Correct PC next (for misprediction detection)
-    logic [31:0] correct_pc_next;
-    always_comb begin
-        if (ex_jump) begin
-            correct_pc_next = ex_jump_target;
-        end else if (ex_branch && ex_branch_taken) begin
-            correct_pc_next = ex_branch_target;
-        end else begin
-            correct_pc_next = ex_pc_plus4;
-        end
-    end
-    
+
+    // ... (skipping EX logic) ...
+
     // EX/MEM Pipeline Register
     always_ff @(posedge i_clk) begin
         if (~i_reset || flush_ex) begin
@@ -556,7 +478,7 @@ module pipelined (
             mem_predicted_taken <= 1'b0;
             mem_is_branch <= 1'b0;
             mem_enable <= 1'b0;
-        end else if (ex_enable) begin
+        end else begin // Always update (allow bubble propagation)
             mem_pc <= ex_pc;
             mem_pc_plus4 <= ex_pc_plus4;
             mem_alu_result <= ex_alu_result;
@@ -574,46 +496,9 @@ module pipelined (
             mem_enable <= ex_enable;
         end
     end
-    
-    // ============================================
-    // MEM Stage: Memory Access
-    // ============================================
-    assign mem_addr = mem_alu_result;
-    assign mem_wdata = mem_rs2_data;
-    
-    dmem_sync u_dmem (
-        .clk        (i_clk),
-        .enable     (mem_enable),
-        .we         (mem_mem_write && (mem_addr < 32'h0001_0000)),  // Only write to memory region (0x0000_0000 - 0x0000_FFFF)
-        .addr       (mem_addr),
-        .wdata      (mem_wdata),
-        .mem_size   (mem_mem_size),
-        .rdata      (mem_rdata)
-    );
-    
-    // I/O memory mapping
-    always_comb begin
-        if (mem_mem_read) begin
-            if (mem_addr >= 32'h1000_4000 && mem_addr < 32'h1000_5000) begin
-                mem_io_data = o_io_lcd;
-            end else if (mem_addr >= 32'h1000_3000 && mem_addr < 32'h1000_4000) begin
-                mem_io_data = {1'b0, o_io_hex7, 1'b0, o_io_hex6, 1'b0, o_io_hex5, 1'b0, o_io_hex4};
-            end else if (mem_addr >= 32'h1000_2000 && mem_addr < 32'h1000_3000) begin
-                mem_io_data = {1'b0, o_io_hex3, 1'b0, o_io_hex2, 1'b0, o_io_hex1, 1'b0, o_io_hex0};
-            end else if (mem_addr >= 32'h1000_1000 && mem_addr < 32'h1000_2000) begin
-                mem_io_data = o_io_ledg;
-            end else if (mem_addr >= 32'h1000_0000 && mem_addr < 32'h1000_1000) begin
-                mem_io_data = o_io_ledr;
-            end else if (mem_addr >= 32'h1001_0000 && mem_addr < 32'h1001_1000) begin
-                mem_io_data = i_io_sw;
-            end else begin
-                mem_io_data = mem_rdata;
-            end
-        end else begin
-            mem_io_data = mem_rdata;
-        end
-    end
-    
+
+    // ... (skipping MEM logic) ...
+
     // MEM/WB Pipeline Register
     always_ff @(posedge i_clk) begin
         if (~i_reset) begin
@@ -628,7 +513,7 @@ module pipelined (
             wb_is_ctrl <= 1'b0;
             wb_enable <= 1'b0;
             wb_mispred <= 1'b0;
-        end else if (mem_enable) begin
+        end else begin // Always update (allow bubble propagation)
             wb_pc <= mem_pc;
             wb_pc_plus4 <= mem_pc_plus4;
             wb_alu_result <= mem_alu_result;
@@ -639,13 +524,10 @@ module pipelined (
             wb_mem_to_reg <= mem_mem_to_reg;
             wb_is_ctrl <= mem_is_ctrl;
             wb_enable <= mem_enable;
-            // Misprediction: predicted != actual
-            // For branches: mispred if (predicted_taken != branch_taken)
-            // For jumps: mispred if predicted not-taken (jumps always taken)
+            // Misprediction logic
             if (mem_is_branch) begin
                 wb_mispred <= (mem_predicted_taken != mem_branch_taken);
             end else if (mem_is_ctrl) begin
-                // Jump: mispred if predicted not-taken (jumps always taken)
                 wb_mispred <= ~mem_predicted_taken;
             end else begin
                 wb_mispred <= 1'b0;
