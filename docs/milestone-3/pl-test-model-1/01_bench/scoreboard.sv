@@ -53,21 +53,22 @@ module scoreboard(
         num_ctrl    <= o_ctrl     ? num_ctrl    + 1 : num_ctrl;
         num_insn    <= o_insn_vld ? num_insn    + 1 : num_insn;
         num_mispred <= o_mispred  ? num_mispred + 1 : num_mispred;
-        // Update previous LEDR value
+        // Update previous LEDR value for change detection
         prev_ledr   <= o_io_ledr[7:0];
       end
   end
 
 
   always @(negedge i_clk) begin : debug
-      // Method 1: Check PC = 0x18 (like milestone-2, but o_pc_debug = wb_pc in milestone-3)
-      // When instruction at PC 0x18 reaches WB stage, o_pc_debug = 0x18
-      // At that time, o_io_ledr should already have the value written in MEM stage
+      // In milestone-3, o_pc_debug = wb_pc (WB stage PC)
+      // But I/O write happens in MEM stage, so timing might be off
+      // Try both methods:
+      // Method 1: Check PC = 0x18 (like milestone-2)
       if (o_pc_debug == 32'h18) begin
           $write("%s", o_io_ledr[7:0]);
       end
-      // Method 2: Also catch LEDR changes as backup
-      // This catches I/O writes that happen at other PCs
+      // Method 2: Catch any LEDR change (backup - catches I/O writes at any PC)
+      // Use prev_ledr from last cycle (updated in counters block)
       else if ((o_io_ledr[7:0] != prev_ledr) && (o_io_ledr[7:0] != 8'b0)) begin
           $write("%s", o_io_ledr[7:0]);
       end
