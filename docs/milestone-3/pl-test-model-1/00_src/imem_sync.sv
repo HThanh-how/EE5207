@@ -40,7 +40,11 @@ module imem_sync (
                 while (!$feof(fd) && (addr_idx + 3) < MEM_SIZE) begin
                     code = $fscanf(fd, "%h", word);
                     if (code == 1) begin
-                        // Word is already logic [31:0]
+                        // Store in memory order that matches readback
+                        // When reading: {mem[addr+3], mem[addr+2], mem[addr+1], mem[addr]}
+                        // So for word 0x00007137:
+                        // mem[0]=0x37, mem[1]=0x71, mem[2]=0x00, mem[3]=0x00
+                        // Read back: {0x00, 0x00, 0x71, 0x37} = 0x00007137
                         mem[addr_idx+0] = word[7:0];
                         mem[addr_idx+1] = word[15:8];
                         mem[addr_idx+2] = word[23:16];
@@ -53,6 +57,10 @@ module imem_sync (
                 end
                 $fclose(fd);
                 $display("[IMEM_SYNC] Loaded %0d words from isa_4b.hex", addr_idx/4);
+                // Debug: print first few instructions
+                $display("[IMEM_SYNC] First instruction at 0x00: %02h%02h%02h%02h", mem[3], mem[2], mem[1], mem[0]);
+                $display("[IMEM_SYNC] Second instruction at 0x04: %02h%02h%02h%02h", mem[7], mem[6], mem[5], mem[4]);
+                $display("[IMEM_SYNC] Third instruction at 0x08: %02h%02h%02h%02h", mem[11], mem[10], mem[9], mem[8]);
             end else begin
                 // 3) Last resort: byte-wide isa_1b.hex (Milestone 2/3 common format)
                 fd = $fopen("../02_test/isa_1b.hex", "r");
