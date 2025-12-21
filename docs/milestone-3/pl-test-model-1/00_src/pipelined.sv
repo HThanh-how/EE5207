@@ -697,7 +697,7 @@ module pipelined (
                 (id_rs2_addr == ex_rd_addr && id_rs2_addr != 5'b0 && (id_mem_write || id_branch))) begin
                 stall_if = 1'b1;
                 stall_id = 1'b1;
-                flush_ex = 1'b1;  // Insert bubble in EX stage
+                flush_id = 1'b1;  // Insert bubble in EX stage (flush ID/EX)
             end
         end
         
@@ -719,7 +719,7 @@ module pipelined (
             if (ex_predicted_taken != actual_taken) begin
                 flush_if = 1'b1;
                 flush_id = 1'b1;
-                flush_ex = 1'b1;
+                // DO NOT flush EX - the branch/jump itself must proceed to WB
                 // Correct PC will be set in next cycle
             end
         end
