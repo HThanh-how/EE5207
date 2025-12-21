@@ -56,13 +56,14 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
 
 \section{Block Diagram of Pipelined Processor}
 
+\begin{landscape}
 \begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
         >=stealth,
         node distance=0.8cm and 1.2cm,
         every node/.style={align=center},
-        scale=0.5,
+        scale=0.7,
         stage/.style={rectangle, draw, rounded corners, minimum width=2.0cm, minimum height=1.2cm, fill=blue!10, text centered, align=center, font=\footnotesize},
         module/.style={rectangle, draw, rounded corners, minimum width=1.6cm, minimum height=0.8cm, fill=green!10, text centered, align=center, font=\tiny},
         reg/.style={rectangle, draw, minimum width=1.4cm, minimum height=0.6cm, fill=orange!15, text centered, font=\tiny, align=center},
@@ -185,6 +186,7 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
     \caption{Complete block diagram of the five-stage pipelined RISC-V processor showing all major components, pipeline registers, forwarding paths, hazard detection, and branch prediction.}
     \label{fig:pipeline_block_diagram}
 \end{figure}
+\end{landscape}
 
 \subsection{Component Descriptions}
 
@@ -351,13 +353,14 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \subsection{EX Stage Detailed Block Diagram}
 
+\begin{landscape}
 \begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
         >=stealth,
         node distance=1.0cm,
         every node/.style={align=center},
-        scale=0.75,
+        scale=0.9,
         comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=0.8cm, minimum height=0.6cm, fill=yellow!20, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=1.5cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny, align=center},
@@ -429,16 +432,18 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \caption{EX Stage detailed block diagram showing ALU, forwarding MUXes, branch comparison, and target calculation.}
     \label{fig:ex_stage_detail}
 \end{figure}
+\end{landscape}
 
 \subsection{MEM Stage and I/O Mapping Block Diagram}
 
+\begin{landscape}
 \begin{figure}[ht]
     \centering
     \begin{tikzpicture}[
         >=stealth,
         node distance=1.2cm,
         every node/.style={align=center},
-        scale=0.8,
+        scale=1.0,
         comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny, align=center},
@@ -492,6 +497,7 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \caption{MEM Stage block diagram showing DMEM access and I/O memory mapping with address decoder.}
     \label{fig:mem_stage_detail}
 \end{figure}
+\end{landscape}
 
 \subsection{PC Selection Logic Block Diagram}
 
