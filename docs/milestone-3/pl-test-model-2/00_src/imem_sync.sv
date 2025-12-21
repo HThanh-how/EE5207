@@ -45,22 +45,29 @@ module imem_sync (
                     $display("[IMEM_SYNC] Loading ../02_test/isa_4b.hex with manual word-to-byte unpacking");
                     addr_idx = 0;
                     while (!$feof(fd) && (addr_idx + 3) < MEM_SIZE) begin
-                        code = $fscanf(fd, "%h", word_int);
-                        if (code == 1) begin
-                            // Cast integer to 32-bit unsigned logic (treat as unsigned)
-                            word = word_int[31:0];
-                            // Little-endian: byte 0 is least-significant
-                            mem[addr_idx+0] = word[7:0];
-                            mem[addr_idx+1] = word[15:8];
-                            mem[addr_idx+2] = word[23:16];
-                            mem[addr_idx+3] = word[31:24];
-                            addr_idx = addr_idx + 4;
-                        end else begin
-                            // Skip malformed line by reading the rest of the line
-                            void'($fgets(line_buf, fd));
+                        if ($fgets(line_buf, fd) > 0) begin
+                            // Remove trailing whitespace and newline
+                            while (line_buf.len() > 0 && (line_buf[line_buf.len()-1] == "\n" || line_buf[line_buf.len()-1] == "\r" || line_buf[line_buf.len()-1] == " " || line_buf[line_buf.len()-1] == "\t")) begin
+                                line_buf = line_buf.substr(0, line_buf.len()-2);
+                            end
+                            // Convert hex string to integer
+                            if (line_buf.len() > 0) begin
+                                code = $sscanf(line_buf, "%h", word_int);
+                                if (code == 1) begin
+                                    // Cast integer to 32-bit unsigned logic
+                                    word = word_int[31:0];
+                                    // Little-endian: byte 0 is least-significant
+                                    mem[addr_idx+0] = word[7:0];
+                                    mem[addr_idx+1] = word[15:8];
+                                    mem[addr_idx+2] = word[23:16];
+                                    mem[addr_idx+3] = word[31:24];
+                                    addr_idx = addr_idx + 4;
+                                end
+                            end
                         end
                     end
                     $fclose(fd);
+                    $display("[IMEM_SYNC] Loaded %0d words from isa_4b.hex", addr_idx/4);
                 end else begin
                     $display("[IMEM_SYNC] ERROR: No isa.mem / isa_1b.hex / isa_4b.hex found");
                 end
