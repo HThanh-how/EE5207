@@ -201,6 +201,343 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \item \textbf{Branch Target Buffer (BTB)}: 256-entry buffer storing branch/jump targets and two-bit predictor states.
 \end{itemize}
 
+\subsection{Forwarding Unit Block Diagram}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.5cm,
+        comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=1cm, fill=blue!10, text centered},
+        mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20},
+        signal/.style={->, thick},
+        label/.style={font=\small}
+    ]
+        % Inputs
+        \node[comp] (ex_rs1) {EX rs1\\data};
+        \node[comp, below=1cm of ex_rs1] (ex_rs2) {EX rs2\\data};
+        \node[comp, right=2cm of ex_rs1] (mem_alu) {MEM ALU\\result};
+        \node[comp, right=2cm of ex_rs2] (wb_data) {WB reg\\wdata};
+        
+        % Forwarding logic
+        \node[comp, above=1.5cm of mem_alu] (forward_logic) {Forwarding\\Logic};
+        
+        % MUXes
+        \node[mux, right=2cm of ex_rs1] (mux_a) {MUX\\A};
+        \node[mux, right=2cm of ex_rs2] (mux_b) {MUX\\B};
+        
+        % Outputs
+        \node[comp, right=2cm of mux_a] (forward_rs1) {Forwarded\\rs1};
+        \node[comp, right=2cm of mux_b] (forward_rs2) {Forwarded\\rs2};
+        
+        % Connections
+        \draw[signal] (ex_rs1) -- (mux_a);
+        \draw[signal] (ex_rs2) -- (mux_b);
+        \draw[signal] (mem_alu) -- (mux_a);
+        \draw[signal] (mem_alu) -- (mux_b);
+        \draw[signal] (wb_data) -- (mux_a);
+        \draw[signal] (wb_data) -- (mux_b);
+        
+        \draw[signal, dashed] (forward_logic) -- node[left, label] {forward\_a[1:0]} (mux_a);
+        \draw[signal, dashed] (forward_logic) -- node[left, label] {forward\_b[1:0]} (mux_b);
+        
+        \draw[signal] (mux_a) -- (forward_rs1);
+        \draw[signal] (mux_b) -- (forward_rs2);
+        
+        % Labels
+        \node[above=0.2cm of forward_logic, label] {Compare: ex\_rs1\_addr, ex\_rs2\_addr vs mem\_rd\_addr, wb\_rd\_addr};
+        
+    \end{tikzpicture}
+    \caption{Forwarding Unit block diagram showing data paths from MEM and WB stages to EX stage MUXes.}
+    \label{fig:forwarding_unit}
+\end{figure}
+
+\subsection{Hazard Detection Unit Block Diagram}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.5cm,
+        comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=green!10, text centered},
+        logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=orange!20, text centered, font=\small},
+        signal/.style={->, thick},
+        label/.style={font=\tiny}
+    ]
+        % Inputs
+        \node[comp] (id_stage) {ID Stage\\Signals};
+        \node[comp, right=1.5cm of id_stage] (ex_stage) {EX Stage\\Signals};
+        \node[comp, below=1cm of id_stage] (mem_stage) {MEM Stage\\Signals};
+        
+        % Detection logic
+        \node[logic, right=2cm of ex_stage] (load_use) {Load-Use\\Detector};
+        \node[logic, below=0.5cm of load_use] (ctrl_hazard) {Control\\Hazard\\Detector};
+        
+        % Outputs
+        \node[comp, right=2cm of load_use] (stall) {Stall\\Signals};
+        \node[comp, right=2cm of ctrl_hazard] (flush) {Flush\\Signals};
+        
+        % Connections
+        \draw[signal] (id_stage) -- (load_use);
+        \draw[signal] (ex_stage) -- (load_use);
+        \draw[signal] (ex_stage) -- (ctrl_hazard);
+        \draw[signal] (mem_stage) -- (ctrl_hazard);
+        
+        \draw[signal] (load_use) -- node[above, label] {stall\_if, stall\_id, flush\_ex} (stall);
+        \draw[signal] (ctrl_hazard) -- node[above, label] {flush\_if, flush\_id, flush\_ex} (flush);
+        
+        % Labels
+        \node[above=0.3cm of id_stage, label] {id\_rs1\_addr, id\_rs2\_addr, id\_reg\_write, id\_mem\_write, id\_branch};
+        \node[above=0.3cm of ex_stage, label] {ex\_is\_load, ex\_rd\_addr, ex\_is\_ctrl, ex\_predicted\_taken, ex\_branch\_taken};
+        
+    \end{tikzpicture}
+    \caption{Hazard Detection Unit block diagram showing detection logic for load-use and control hazards.}
+    \label{fig:hazard_detection}
+\end{figure}
+
+\subsection{Branch Predictor and BTB Block Diagram}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.5cm,
+        comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=purple!10, text centered},
+        mem/.style={rectangle, draw, minimum width=3cm, minimum height=2cm, fill=blue!15, text centered},
+        logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=yellow!20, text centered, font=\small},
+        signal/.style={->, thick},
+        label/.style={font=\tiny}
+    ]
+        % IF Stage
+        \node[comp] (if_pc) {IF Stage\\PC};
+        \node[logic, right=1.5cm of if_pc] (index_gen) {Index\\Generator};
+        \node[logic, below=0.5cm of index_gen] (tag_gen) {Tag\\Generator};
+        
+        % BTB Memory
+        \node[mem, right=2cm of index_gen] (btb) {BTB\\256 entries\\[Tag, Target, State]};
+        
+        % Lookup logic
+        \node[logic, right=2cm of btb] (lookup) {Lookup\\Logic};
+        \node[comp, right=1.5cm of lookup] (pred_pc) {Predicted\\PC};
+        
+        % EX Stage update
+        \node[comp, below=2cm of if_pc] (ex_pc) {EX Stage\\PC};
+        \node[logic, right=1.5cm of ex_pc] (update_logic) {Update\\Logic};
+        \node[logic, below=0.5cm of update_logic] (fsm) {Two-bit\\FSM};
+        
+        % Connections
+        \draw[signal] (if_pc) -- (index_gen);
+        \draw[signal] (if_pc) -- (tag_gen);
+        \draw[signal] (index_gen) -- node[above, label] {btb\_index} (btb);
+        \draw[signal] (tag_gen) -- node[above, label] {btb\_tag} (btb);
+        \draw[signal] (btb) -- (lookup);
+        \draw[signal] (lookup) -- (pred_pc);
+        
+        \draw[signal, dashed] (ex_pc) -- (update_logic);
+        \draw[signal, dashed] (update_logic) -- (btb);
+        \draw[signal, dashed] (fsm) -- (btb);
+        
+        % Labels
+        \node[above=0.3cm of btb, label] {Lookup: IF stage | Update: EX stage};
+        
+    \end{tikzpicture}
+    \caption{Branch Target Buffer (BTB) and Two-bit Predictor block diagram showing lookup in IF stage and update in EX stage.}
+    \label{fig:btb_diagram}
+\end{figure}
+
+\subsection{EX Stage Detailed Block Diagram}
+
+\begin{figure}[h]
+    \centering
+    \resizebox{0.9\textwidth}{!}{%
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.2cm,
+        comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=blue!10, text centered, font=\small},
+        mux/.style={rectangle, draw, minimum width=0.8cm, minimum height=0.6cm, fill=yellow!20},
+        logic/.style={rectangle, draw, rounded corners, minimum width=1.5cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny},
+        signal/.style={->, thick},
+        label/.style={font=\tiny}
+    ]
+        % Inputs from ID/EX
+        \node[comp] (idex_rs1) {ID/EX\\rs1\_data};
+        \node[comp, below=0.5cm of idex_rs1] (idex_rs2) {ID/EX\\rs2\_data};
+        \node[comp, below=0.5cm of idex_rs2] (idex_imm) {ID/EX\\imm};
+        \node[comp, below=0.5cm of idex_imm] (idex_pc) {ID/EX\\pc};
+        
+        % Forwarding MUXes
+        \node[mux, right=1.5cm of idex_rs1] (mux_rs1) {MUX};
+        \node[mux, right=1.5cm of idex_rs2] (mux_rs2) {MUX};
+        
+        % Forwarded data
+        \node[comp, right=1.5cm of mux_rs1] (forward_rs1) {Forwarded\\rs1};
+        \node[comp, right=1.5cm of mux_rs2] (forward_rs2) {Forwarded\\rs2};
+        
+        % ALU source MUXes
+        \node[mux, right=1.5cm of forward_rs1] (mux_alu_a) {MUX\\A};
+        \node[mux, right=1.5cm of forward_rs2] (mux_alu_b) {MUX\\B};
+        
+        % ALU
+        \node[comp, right=1.5cm of mux_alu_a, yshift=-0.4cm] (alu) {ALU};
+        
+        % Branch compare
+        \node[logic, above=1cm of alu] (branch_comp) {Branch\\Compare};
+        
+        % ALU result
+        \node[comp, right=1.5cm of alu] (alu_result) {ALU\\Result};
+        
+        % Target calculation
+        \node[logic, below=1cm of alu] (target_calc) {Target\\Calc};
+        \node[comp, right=1.5cm of target_calc] (branch_target) {Branch\\Target};
+        \node[comp, below=0.5cm of branch_target] (jump_target) {Jump\\Target};
+        
+        % Connections
+        \draw[signal] (idex_rs1) -- (mux_rs1);
+        \draw[signal] (idex_rs2) -- (mux_rs2);
+        \draw[signal] (mux_rs1) -- (forward_rs1);
+        \draw[signal] (mux_rs2) -- (forward_rs2);
+        \draw[signal] (forward_rs1) -- (mux_alu_a);
+        \draw[signal] (forward_rs2) -- (mux_alu_b);
+        \draw[signal] (idex_imm) -- (mux_alu_b);
+        \draw[signal] (idex_pc) -- (mux_alu_a);
+        \draw[signal] (mux_alu_a) -- (alu);
+        \draw[signal] (mux_alu_b) -- (alu);
+        \draw[signal] (forward_rs1) -- (branch_comp);
+        \draw[signal] (forward_rs2) -- (branch_comp);
+        \draw[signal] (alu) -- (alu_result);
+        \draw[signal] (idex_pc) -- (target_calc);
+        \draw[signal] (idex_imm) -- (target_calc);
+        \draw[signal] (forward_rs1) -- (target_calc);
+        \draw[signal] (target_calc) -- (branch_target);
+        \draw[signal] (target_calc) -- (jump_target);
+        
+        % Forwarding inputs (dashed)
+        \node[comp, above=2cm of mux_rs1, xshift=1cm] (mem_alu) {MEM\\ALU result};
+        \node[comp, above=1cm of mem_alu] (wb_data) {WB\\reg wdata};
+        
+        \draw[signal, dashed, blue] (mem_alu) to[bend right=20] (mux_rs1);
+        \draw[signal, dashed, blue] (mem_alu) to[bend right=20] (mux_rs2);
+        \draw[signal, dashed, blue] (wb_data) to[bend right=30] (mux_rs1);
+        \draw[signal, dashed, blue] (wb_data) to[bend right=30] (mux_rs2);
+        
+    \end{tikzpicture}%
+    }
+    \caption{EX Stage detailed block diagram showing ALU, forwarding MUXes, branch comparison, and target calculation.}
+    \label{fig:ex_stage_detail}
+\end{figure}
+
+\subsection{MEM Stage and I/O Mapping Block Diagram}
+
+\begin{figure}[h]
+    \centering
+    \resizebox{0.85\textwidth}{!}{%
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.5cm,
+        comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=blue!10, text centered, font=\small},
+        mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20},
+        logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny},
+        io/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=orange!10, text centered, font=\tiny},
+        signal/.style={->, thick}
+    ]
+        % Inputs from EX/MEM
+        \node[comp] (exmem_alu) {EX/MEM\\ALU result};
+        \node[comp, below=0.5cm of exmem_alu] (exmem_rs2) {EX/MEM\\rs2\_data};
+        \node[comp, below=0.5cm of exmem_rs2] (exmem_addr) {Address\\(ALU result)};
+        
+        % Address decoder
+        \node[logic, right=2cm of exmem_addr] (addr_decode) {Address\\Decoder};
+        
+        % DMEM
+        \node[comp, below=2cm of addr_decode] (dmem) {DMEM\\Sync};
+        
+        % I/O mapping
+        \node[io, above=1cm of addr_decode] (io_ledr) {LEDR};
+        \node[io, above=0.5cm of io_ledr] (io_ledg) {LEDG};
+        \node[io, above=0.5cm of io_ledg] (io_hex) {HEX0-7};
+        \node[io, above=0.5cm of io_hex] (io_lcd) {LCD};
+        \node[io, below=0.5cm of dmem] (io_sw) {Switches};
+        
+        % Read MUX
+        \node[mux, right=3cm of addr_decode] (read_mux) {Read\\MUX};
+        
+        % Output
+        \node[comp, right=1.5cm of read_mux] (mem_rdata) {MEM\\rdata};
+        
+        % Connections
+        \draw[signal] (exmem_alu) -- (exmem_addr);
+        \draw[signal] (exmem_addr) -- (addr_decode);
+        \draw[signal] (exmem_rs2) -- (dmem);
+        \draw[signal] (addr_decode) -- (dmem);
+        \draw[signal] (addr_decode) -- (io_ledr);
+        \draw[signal] (addr_decode) -- (io_ledg);
+        \draw[signal] (addr_decode) -- (io_hex);
+        \draw[signal] (addr_decode) -- (io_lcd);
+        \draw[signal] (addr_decode) -- (io_sw);
+        
+        \draw[signal] (dmem) -- (read_mux);
+        \draw[signal] (io_ledr) -- (read_mux);
+        \draw[signal] (io_ledg) -- (read_mux);
+        \draw[signal] (io_hex) -- (read_mux);
+        \draw[signal] (io_lcd) -- (read_mux);
+        \draw[signal] (io_sw) -- (read_mux);
+        \draw[signal] (read_mux) -- (mem_rdata);
+        
+    \end{tikzpicture}%
+    }
+    \caption{MEM Stage block diagram showing DMEM access and I/O memory mapping with address decoder.}
+    \label{fig:mem_stage_detail}
+\end{figure}
+
+\subsection{PC Selection Logic Block Diagram}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.5cm,
+        comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=blue!10, text centered, font=\small},
+        mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20},
+        logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny},
+        signal/.style={->, thick}
+    ]
+        % Current PC
+        \node[comp] (pc) {PC};
+        \node[comp, right=1.5cm of pc] (pc_plus4) {PC + 4};
+        
+        % BTB prediction
+        \node[comp, above=1.5cm of pc_plus4] (btb_pc) {BTB\\Predicted PC};
+        \node[logic, left=1.5cm of btb_pc] (btb_hit) {BTB\\Hit?};
+        
+        % Misprediction correction
+        \node[comp, below=1.5cm of pc_plus4] (corrected_pc) {Corrected\\PC};
+        \node[logic, left=1.5cm of corrected_pc] (mispred) {Misprediction?};
+        
+        % PC selection MUX
+        \node[mux, right=2cm of pc_plus4] (pc_mux) {PC\\MUX};
+        \node[comp, right=1.5cm of pc_mux] (pc_next) {PC\\Next};
+        
+        % Connections
+        \draw[signal] (pc) -- (pc_plus4);
+        \draw[signal] (btb_hit) -- (btb_pc);
+        \draw[signal] (mispred) -- (corrected_pc);
+        
+        \draw[signal] (pc_plus4) -- (pc_mux);
+        \draw[signal] (btb_pc) -- (pc_mux);
+        \draw[signal] (corrected_pc) -- (pc_mux);
+        \draw[signal] (pc_mux) -- (pc_next);
+        
+        % Control signals
+        \node[logic, above=0.5cm of pc_mux] (pc_sel) {PC Select\\Logic};
+        \draw[signal, dashed] (pc_sel) -- (pc_mux);
+        \draw[signal, dashed] (btb_hit) -- (pc_sel);
+        \draw[signal, dashed] (mispred) -- (pc_sel);
+        
+    \end{tikzpicture}
+    \caption{PC selection logic block diagram showing PC+4, BTB predicted PC, and misprediction correction paths.}
+    \label{fig:pc_selection}
+\end{figure}
+
 \section{Datapath Components}
 
 \subsection{Program Counter (PC)}
