@@ -62,8 +62,8 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : result
-      // Match milestone-2 baseline: check PC only, no o_insn_vld requirement
-      if ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20)) begin
+      // MUST use o_insn_vld to ensure instruction actually retires (not just appears in pipeline)
+      if (o_insn_vld && ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20))) begin
         $display("\n=================== Result ===================");
         if (num_cycle != 0) $display("Total Clock Cycles Executed = %1.0f", num_cycle);
         else                $display("Total Clock Cycles Executed = N/A");
