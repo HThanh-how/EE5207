@@ -52,6 +52,9 @@ module scoreboard(
 
   // Print PASS/ERROR messages from test program via LEDR
   always @(negedge i_clk) begin : debug
+      if (o_insn_vld) begin
+          $display("Time: %0t | Commit PC: %h", $time, o_pc_debug);
+      end
       if (o_insn_vld && (o_pc_debug == 32'h18)) begin
           $write("%s", o_io_ledr[7:0]);
       end
