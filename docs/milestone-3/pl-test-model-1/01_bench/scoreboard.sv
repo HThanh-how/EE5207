@@ -30,13 +30,9 @@ module scoreboard(
   real ipc;            // Instructino Per Cycle
   real misprd_rate;    // Misprediction Rate
 
-  // Track previous LEDR value to detect changes
-  logic [7:0] prev_ledr;
-
   // Display test name
   initial begin
     $display("\nPIPELINE - ISA tests\n");
-    prev_ledr = 8'b0;
   end
 
 
@@ -57,16 +53,11 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : debug
-      // Print character when LEDR[7:0] changes (similar to single cycle)
-      if ((o_io_ledr[7:0] != prev_ledr) && (o_io_ledr[7:0] != 8'b0)) begin
+      // Simple approach like milestone-2: just check PC = 0x18
+      // In pipeline, o_pc_debug is WB stage PC
+      // When instruction at PC 0x18 reaches WB stage, print the character
+      if (o_pc_debug == 32'h18) begin
           $write("%s", o_io_ledr[7:0]);
-      end
-      // Update previous value every cycle
-      if (!i_reset) begin
-          prev_ledr <= 8'b0;
-      end
-      else begin
-          prev_ledr <= o_io_ledr[7:0];
       end
   end
 
