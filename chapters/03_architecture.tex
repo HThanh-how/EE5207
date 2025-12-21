@@ -16,6 +16,148 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
     \label{fig:pipeline_overview}
 \end{figure}
 
+\begin{landscape}
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.0cm and 1.2cm,
+        every node/.style={align=center},
+        scale=0.5,
+        transform shape,
+        stage/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1.5cm, fill=blue!10, text centered, font=\footnotesize, align=center},
+        module/.style={rectangle, draw, rounded corners, minimum width=2.0cm, minimum height=1.0cm, fill=green!10, text centered, font=\tiny, align=center},
+        reg/.style={rectangle, draw, minimum width=1.8cm, minimum height=0.8cm, fill=orange!15, text centered, font=\tiny, align=center},
+        mux/.style={trapezium, trapezium left angle=75, trapezium right angle=75, draw, minimum width=1.0cm, minimum height=0.8cm, fill=yellow!20, align=center, font=\tiny},
+        unit/.style={rectangle, draw, rounded corners, minimum width=2.0cm, minimum height=1.0cm, fill=purple!10, text centered, font=\tiny, align=center},
+        signal/.style={->, thick, black},
+        control/.style={->, dashed, red, thick},
+        forward/.style={->, dashed, blue, thick}
+    ]
+        % IF Stage
+        \node[stage] (if_stage) {IF\\Stage};
+        \node[module, above=0.5cm of if_stage] (pc) {PC};
+        \node[module, below=0.5cm of if_stage] (imem) {IMEM};
+        \node[module, right=0.4cm of pc] (pc_adder) {PC+4};
+        
+        % IF/ID Register
+        \node[reg, right=1.8cm of if_stage] (ifid) {IF/ID\\Register};
+        
+        % ID Stage
+        \node[stage, right=1.8cm of ifid] (id_stage) {ID\\Stage};
+        \node[module, below=0.5cm of id_stage, xshift=-0.5cm] (control) {Control\\Unit};
+        \node[module, below=0.5cm of control] (regfile) {Register\\File};
+        \node[module, below=0.5cm of regfile] (imm_gen) {Immediate\\Generator};
+        
+        % Forwarding Unit
+        \node[unit, right=1.0cm of id_stage, yshift=0.6cm] (forward_unit) {Forwarding\\Unit};
+        
+        % ID/EX Register
+        \node[reg, right=1.8cm of id_stage] (idex) {ID/EX\\Register};
+        
+        % EX Stage with Forwarding MUXes
+        \node[stage, right=1.8cm of idex] (ex_stage) {EX\\Stage};
+        \node[mux, left=0.8cm of ex_stage, yshift=0.4cm] (mux_rs1) {MUX\\A};
+        \node[mux, left=0.8cm of ex_stage, yshift=-0.4cm] (mux_rs2) {MUX\\B};
+        \node[module, below=0.5cm of ex_stage] (alu) {ALU};
+        \node[module, above=0.5cm of ex_stage] (branch_comp) {Branch\\Compare};
+        
+        % EX/MEM Register
+        \node[reg, right=1.8cm of ex_stage] (exmem) {EX/MEM\\Register};
+        
+        % MEM Stage
+        \node[stage, right=1.8cm of exmem] (mem_stage) {MEM\\Stage};
+        \node[module, below=0.5cm of mem_stage] (dmem) {DMEM};
+        
+        % MEM/WB Register
+        \node[reg, right=1.8cm of mem_stage] (memwb) {MEM/WB\\Register};
+        
+        % WB Stage
+        \node[stage, right=1.8cm of memwb] (wb_stage) {WB\\Stage};
+        \node[mux, below=0.5cm of wb_stage] (wb_mux) {WB\\MUX};
+        
+        % Main pipeline flow
+        \draw[signal] (pc) -- (if_stage);
+        \draw[signal] (if_stage) -- (imem);
+        \draw[signal] (pc) -- (pc_adder);
+        \draw[signal] (imem) -- (ifid);
+        \draw[signal] (pc_adder) -- (ifid);
+        \draw[signal] (ifid) -- (id_stage);
+        \draw[signal] (id_stage) -- (idex);
+        \draw[signal] (idex) -- node[above, font=\tiny] {rs1\_data} (mux_rs1);
+        \draw[signal] (idex) -- node[below, font=\tiny] {rs2\_data} (mux_rs2);
+        \draw[signal] (mux_rs1) -- node[above, font=\tiny] {forwarded\\rs1} (ex_stage);
+        \draw[signal] (mux_rs2) -- node[below, font=\tiny] {forwarded\\rs2} (ex_stage);
+        \draw[signal] (ex_stage) -- (exmem);
+        \draw[signal] (exmem) -- (mem_stage);
+        \draw[signal] (mem_stage) -- (memwb);
+        \draw[signal] (memwb) -- (wb_stage);
+        \draw[signal] (wb_stage) -- (wb_mux);
+        
+        % Control Unit connections
+        \draw[signal] (ifid) to[bend right=25] (control);
+        \draw[control] (control) to[bend left=8] (idex);
+        \draw[control] (control) to[bend right=20] (regfile);
+        \draw[control] (control) to[bend right=25] (forward_unit);
+        \draw[control] (control) to[bend right=30] (ex_stage);
+        \draw[control] (control) to[bend right=35] (mem_stage);
+        \draw[control] (control) to[bend right=40] (wb_stage);
+        
+        % Register File connections
+        \draw[signal] (ifid) to[bend right=30] (regfile);
+        \draw[signal] (regfile) to[bend left=8] (idex);
+        \draw[signal] (wb_mux) to[bend left=70, looseness=1.6] node[above, font=\tiny, sloped] {Write Data} (regfile);
+        
+        % Immediate Generator
+        \draw[signal] (ifid) to[bend right=35] (imm_gen);
+        \draw[signal] (imm_gen) to[bend left=12] (idex);
+        
+        % Forwarding paths from MEM stage (ALU result)
+        \draw[forward] (exmem) to[bend right=30, looseness=1.2] node[above, font=\tiny, sloped] {mem\_alu\_result\\(10)} (mux_rs1);
+        \draw[forward] (exmem) to[bend right=35, looseness=1.2] node[below, font=\tiny, sloped] {mem\_alu\_result\\(10)} (mux_rs2);
+        
+        % Forwarding paths from WB stage
+        \draw[forward] (memwb) to[bend right=45, looseness=1.3] node[above, font=\tiny, sloped] {wb\_reg\_wdata\\(01)} (mux_rs1);
+        \draw[forward] (memwb) to[bend right=50, looseness=1.3] node[below, font=\tiny, sloped] {wb\_reg\_wdata\\(01)} (mux_rs2);
+        
+        % Forwarding Unit connections
+        \draw[signal] (idex) to[bend left=20] node[above, font=\tiny] {ex\_rs1\_addr\\ex\_rs2\_addr} (forward_unit);
+        \draw[signal] (exmem) to[bend right=25] node[above, font=\tiny] {mem\_rd\_addr\\mem\_reg\_write} (forward_unit);
+        \draw[signal] (memwb) to[bend right=35] node[above, font=\tiny] {wb\_rd\_addr\\wb\_reg\_write} (forward_unit);
+        \draw[forward] (forward_unit) to[bend left=15] node[above, font=\tiny] {forward\_a[1:0]} (mux_rs1);
+        \draw[forward] (forward_unit) to[bend right=15] node[below, font=\tiny] {forward\_b[1:0]} (mux_rs2);
+        
+        % ALU connections (with forwarded data)
+        \draw[signal] (mux_rs1) to[bend right=8] (alu);
+        \draw[signal] (mux_rs2) to[bend right=8] (alu);
+        \draw[signal] (alu) -- node[above, font=\tiny] {alu\_result} (exmem);
+        
+        % Branch comparison (with forwarded data)
+        \draw[signal] (mux_rs1) to[bend left=15] (branch_comp);
+        \draw[signal] (mux_rs2) to[bend left=10] (branch_comp);
+        \draw[signal] (branch_comp) to[bend right=8] (ex_stage);
+        
+        % DMEM connections
+        \draw[signal] (exmem) to[bend right=8] (dmem);
+        \draw[signal] (dmem) -- node[above, font=\tiny] {mem\_rdata} (memwb);
+        
+        % Writeback MUX
+        \draw[signal] (memwb) to[bend right=8] node[above, font=\tiny] {alu\_result} (wb_mux);
+        \draw[signal] (memwb) to[bend left=25, looseness=1.2] node[below, font=\tiny] {mem\_rdata} (wb_mux);
+        
+        % Labels for MUX inputs
+        \node[left=0.3cm of mux_rs1, font=\tiny, text width=1.5cm, align=right] {00: ID/EX\\10: MEM\\01: WB};
+        \node[left=0.3cm of mux_rs2, font=\tiny, text width=1.5cm, align=right] {00: ID/EX\\10: MEM\\01: WB};
+        
+        % Forwarding Unit label
+        \node[above=0.3cm of forward_unit, font=\tiny, text width=3.5cm, align=center] {Compare: ex\_rs1\_addr, ex\_rs2\_addr\\vs mem\_rd\_addr, wb\_rd\_addr\\Priority: MEM > WB};
+        
+    \end{tikzpicture}
+    \caption{Forwarding Pipeline Architecture: Complete block diagram showing 5-stage pipeline with Forwarding Unit. The Forwarding Unit compares register addresses and generates forward\_a[1:0] and forward\_b[1:0] control signals. MUXes in EX stage select data from ID/EX register (00), MEM stage (10), or WB stage (01) based on forwarding signals. Priority: MEM stage > WB stage. This diagram accurately represents the forwarding mechanism implemented in the design.}
+    \label{fig:pipeline_detailed}
+\end{figure}
+\end{landscape}
+
 \section{Milestone 3 Pipelined Overview}
 
 \begin{landscape}
@@ -151,6 +293,329 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
     \end{tikzpicture}
     \caption{Complete five-stage pipelined RISC-V processor architecture showing all components: PC, IMEM, Control Unit, Register File, Immediate Generator, Forwarding Unit, ALU, Branch Compare, DMEM, I/O, Writeback MUX, and Hazard Detection Unit with forwarding paths (blue dashed), control signals (red dashed), and data paths (black solid).}
     \label{fig:pipeline_tikz}
+\end{figure}
+\end{landscape}
+
+\section{Non-Forwarding vs Forwarding Pipeline Architectures}
+
+This section presents detailed block diagrams comparing the Non-Forwarding and Forwarding pipeline architectures. The key difference is that the Forwarding architecture includes a Forwarding Unit that forwards data from MEM and WB stages to EX stage, eliminating most data hazards without stalling.
+
+\subsection{Non-Forwarding Pipeline Architecture}
+
+The Non-Forwarding architecture requires pipeline stalls (bubbles) when data hazards occur. When an instruction in EX stage needs data from a previous instruction that is still in MEM or WB stage, the pipeline must stall until the data is available in the register file.
+
+\begin{landscape}
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.2cm and 1.5cm,
+        every node/.style={align=center},
+        scale=0.55,
+        transform shape,
+        stage/.style={rectangle, draw, rounded corners, minimum width=2.2cm, minimum height=1.4cm, fill=blue!10, text centered, font=\footnotesize, align=center},
+        module/.style={rectangle, draw, rounded corners, minimum width=1.8cm, minimum height=0.9cm, fill=green!10, text centered, font=\tiny, align=center},
+        reg/.style={rectangle, draw, minimum width=1.6cm, minimum height=0.7cm, fill=orange!15, text centered, font=\tiny, align=center},
+        mux/.style={rectangle, draw, minimum width=0.7cm, minimum height=0.7cm, fill=yellow!20, align=center, font=\tiny},
+        unit/.style={rectangle, draw, rounded corners, minimum width=1.8cm, minimum height=0.9cm, fill=red!10, text centered, font=\tiny, align=center},
+        signal/.style={->, thick, black},
+        control/.style={->, dashed, red, thick},
+        stall/.style={->, dashed, orange, thick}
+    ]
+        % IF Stage
+        \node[stage] (if_stage) {IF\\Stage};
+        \node[module, above=0.4cm of if_stage] (pc) {PC};
+        \node[module, below=0.4cm of if_stage] (imem) {IMEM};
+        \node[module, right=0.3cm of pc] (pc_adder) {PC+4};
+        
+        % IF/ID Register
+        \node[reg, right=1.5cm of if_stage] (ifid) {IF/ID\\Register};
+        
+        % ID Stage
+        \node[stage, right=1.5cm of ifid] (id_stage) {ID\\Stage};
+        \node[module, below=0.4cm of id_stage, xshift=-0.4cm] (control) {Control\\Unit};
+        \node[module, below=0.4cm of control] (regfile) {Register\\File};
+        \node[module, below=0.4cm of regfile] (imm_gen) {Immediate\\Generator};
+        
+        % Hazard Detection Unit (for Non-Forwarding)
+        \node[unit, above=1.2cm of id_stage, xshift=0.5cm] (hazard) {Hazard\\Detection\\Unit};
+        
+        % ID/EX Register
+        \node[reg, right=1.5cm of id_stage] (idex) {ID/EX\\Register};
+        
+        % EX Stage
+        \node[stage, right=1.5cm of idex] (ex_stage) {EX\\Stage};
+        \node[module, below=0.4cm of ex_stage] (alu) {ALU};
+        \node[module, above=0.4cm of ex_stage] (branch_comp) {Branch\\Compare};
+        
+        % EX/MEM Register
+        \node[reg, right=1.5cm of ex_stage] (exmem) {EX/MEM\\Register};
+        
+        % MEM Stage
+        \node[stage, right=1.5cm of exmem] (mem_stage) {MEM\\Stage};
+        \node[module, below=0.4cm of mem_stage] (dmem) {DMEM};
+        \node[module, below=0.4cm of dmem] (io_map) {I/O\\Mapping};
+        
+        % MEM/WB Register
+        \node[reg, right=1.5cm of mem_stage] (memwb) {MEM/WB\\Register};
+        
+        % WB Stage
+        \node[stage, right=1.5cm of memwb] (wb_stage) {WB\\Stage};
+        \node[mux, below=0.4cm of wb_stage] (wb_mux) {WB\\MUX};
+        
+        % Main pipeline flow
+        \draw[signal] (pc) -- (if_stage);
+        \draw[signal] (if_stage) -- (imem);
+        \draw[signal] (pc) -- (pc_adder);
+        \draw[signal] (imem) -- (ifid);
+        \draw[signal] (pc_adder) -- (ifid);
+        \draw[signal] (ifid) -- (id_stage);
+        \draw[signal] (id_stage) -- (idex);
+        \draw[signal] (idex) -- (ex_stage);
+        \draw[signal] (ex_stage) -- (exmem);
+        \draw[signal] (exmem) -- (mem_stage);
+        \draw[signal] (mem_stage) -- (memwb);
+        \draw[signal] (memwb) -- (wb_stage);
+        \draw[signal] (wb_stage) -- (wb_mux);
+        
+        % Control Unit connections
+        \draw[signal] (ifid) to[bend right=20] (control);
+        \draw[control] (control) to[bend left=5] (idex);
+        \draw[control] (control) to[bend right=15] (regfile);
+        \draw[control] (control) to[bend right=20] (ex_stage);
+        \draw[control] (control) to[bend right=25] (mem_stage);
+        \draw[control] (control) to[bend right=30] (wb_stage);
+        
+        % Register File connections
+        \draw[signal] (ifid) to[bend right=25] (regfile);
+        \draw[signal] (regfile) to[bend left=5] (idex);
+        \draw[signal] (wb_mux) to[bend left=60, looseness=1.5] node[above, font=\tiny, sloped] {Write Data} (regfile);
+        
+        % Immediate Generator
+        \draw[signal] (ifid) to[bend right=30] (imm_gen);
+        \draw[signal] (imm_gen) to[bend left=10] (idex);
+        
+        % ALU connections (NO FORWARDING - direct from ID/EX register)
+        \draw[signal] (idex) to[bend right=8] node[above, font=\tiny] {rs1\_data} (alu);
+        \draw[signal] (idex) to[bend right=8] node[below, font=\tiny] {rs2\_data} (alu);
+        \draw[signal] (alu) -- node[above, font=\tiny] {alu\_result} (exmem);
+        
+        % Branch comparison (NO FORWARDING - direct from ID/EX)
+        \draw[signal] (idex) to[bend left=15] node[above, font=\tiny] {rs1\_data} (branch_comp);
+        \draw[signal] (idex) to[bend left=10] node[below, font=\tiny] {rs2\_data} (branch_comp);
+        \draw[signal] (branch_comp) to[bend right=8] (ex_stage);
+        
+        % DMEM and I/O connections
+        \draw[signal] (exmem) to[bend right=5] (dmem);
+        \draw[signal] (exmem) to[bend right=10] (io_map);
+        \draw[signal] (dmem) -- (memwb);
+        \draw[signal] (io_map) -- (memwb);
+        
+        % Writeback MUX
+        \draw[signal] (memwb) to[bend right=5] (wb_mux);
+        
+        % Hazard Detection connections (stall signals)
+        \draw[stall] (hazard) to[bend left=20] node[above, font=\tiny] {stall\_if} (if_stage);
+        \draw[stall] (hazard) to[bend left=10] node[above, font=\tiny] {stall\_id} (id_stage);
+        \draw[stall] (hazard) to[bend right=10] node[below, font=\tiny] {flush\_ex} (ex_stage);
+        
+        % Hazard Detection inputs
+        \draw[signal, dashed, orange] (idex) to[bend left=30] (hazard);
+        \draw[signal, dashed, orange] (exmem) to[bend right=30] (hazard);
+        \draw[signal, dashed, orange] (memwb) to[bend right=40] (hazard);
+        \draw[signal, dashed, orange] (id_stage) to[bend left=20] (hazard);
+        
+        % PC selection (for branches/jumps)
+        \draw[signal, dashed, blue] (ex_stage) to[bend left=50, looseness=1.2] node[above, font=\tiny] {Branch/Jump Target} (pc);
+        
+        % Labels
+        \node[above=0.2cm of hazard, font=\tiny, text width=4.5cm, align=center] {Detects load-use hazards\\and control hazards\\Generates stall/flush signals};
+        \node[above=0.1cm of idex, font=\tiny, text width=3cm, align=center] {rs1\_data, rs2\_data\\from Register File};
+        \node[below=2.5cm of wb_mux, font=\footnotesize, text width=9cm, align=center, fill=yellow!20, rounded corners, padding=2pt] {\textbf{Key:} No forwarding paths. ALU uses data directly from ID/EX register. Data hazards require pipeline stalls until data is available in register file.};
+        
+    \end{tikzpicture}
+    \caption{Non-Forwarding Pipeline Architecture: Complete block diagram showing 5-stage pipeline without forwarding. Data hazards are resolved by stalling the pipeline until data is available in the register file.}
+    \label{fig:non_forwarding_pipeline}
+\end{figure}
+\end{landscape}
+
+\subsection{Forwarding Pipeline Architecture}
+
+The Forwarding architecture includes a Forwarding Unit that forwards data from MEM and WB stages directly to EX stage, eliminating most data hazards without requiring pipeline stalls. This significantly improves performance.
+
+\begin{landscape}
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}[
+        >=stealth,
+        node distance=1.2cm and 1.5cm,
+        every node/.style={align=center},
+        scale=0.55,
+        transform shape,
+        stage/.style={rectangle, draw, rounded corners, minimum width=2.2cm, minimum height=1.4cm, fill=blue!10, text centered, font=\footnotesize, align=center},
+        module/.style={rectangle, draw, rounded corners, minimum width=1.8cm, minimum height=0.9cm, fill=green!10, text centered, font=\tiny, align=center},
+        reg/.style={rectangle, draw, minimum width=1.6cm, minimum height=0.7cm, fill=orange!15, text centered, font=\tiny, align=center},
+        mux/.style={rectangle, draw, minimum width=0.7cm, minimum height=0.7cm, fill=yellow!20, align=center, font=\tiny},
+        unit/.style={rectangle, draw, rounded corners, minimum width=1.8cm, minimum height=0.9cm, fill=purple!10, text centered, font=\tiny, align=center},
+        hazard_unit/.style={rectangle, draw, rounded corners, minimum width=1.8cm, minimum height=0.9cm, fill=red!10, text centered, font=\tiny, align=center},
+        signal/.style={->, thick, black},
+        control/.style={->, dashed, red, thick},
+        forward/.style={->, dashed, blue, thick},
+        stall/.style={->, dashed, orange, thick}
+    ]
+        % IF Stage
+        \node[stage] (if_stage) {IF\\Stage};
+        \node[module, above=0.4cm of if_stage] (pc) {PC};
+        \node[module, below=0.4cm of if_stage] (imem) {IMEM};
+        \node[module, right=0.3cm of pc] (pc_adder) {PC+4};
+        \node[unit, right=0.8cm of if_stage, yshift=0.3cm] (btb) {BTB\\256 entries};
+        \node[unit, right=0.8cm of btb, yshift=-0.2cm] (predictor) {2-bit\\Predictor};
+        
+        % IF/ID Register
+        \node[reg, right=1.5cm of if_stage] (ifid) {IF/ID\\Register};
+        
+        % ID Stage
+        \node[stage, right=1.5cm of ifid] (id_stage) {ID\\Stage};
+        \node[module, below=0.4cm of id_stage, xshift=-0.4cm] (control) {Control\\Unit};
+        \node[module, below=0.4cm of control] (regfile) {Register\\File};
+        \node[module, below=0.4cm of regfile] (imm_gen) {Immediate\\Generator};
+        
+        % Forwarding Unit
+        \node[unit, right=0.8cm of id_stage, yshift=0.5cm] (forward_unit) {Forwarding\\Unit};
+        
+        % Hazard Detection Unit
+        \node[hazard_unit, above=1.2cm of id_stage, xshift=0.5cm] (hazard) {Hazard\\Detection\\Unit};
+        
+        % ID/EX Register
+        \node[reg, right=1.5cm of id_stage] (idex) {ID/EX\\Register};
+        
+        % EX Stage with Forwarding MUXes
+        \node[stage, right=1.5cm of idex] (ex_stage) {EX\\Stage};
+        \node[mux, left=0.6cm of ex_stage, yshift=0.3cm] (mux_rs1) {MUX\\rs1};
+        \node[mux, left=0.6cm of ex_stage, yshift=-0.3cm] (mux_rs2) {MUX\\rs2};
+        \node[module, below=0.4cm of ex_stage] (alu) {ALU};
+        \node[module, above=0.4cm of ex_stage] (branch_comp) {Branch\\Compare};
+        
+        % EX/MEM Register
+        \node[reg, right=1.5cm of ex_stage] (exmem) {EX/MEM\\Register};
+        
+        % MEM Stage
+        \node[stage, right=1.5cm of exmem] (mem_stage) {MEM\\Stage};
+        \node[module, below=0.4cm of mem_stage] (dmem) {DMEM};
+        \node[module, below=0.4cm of dmem] (io_map) {I/O\\Mapping};
+        
+        % MEM/WB Register
+        \node[reg, right=1.5cm of mem_stage] (memwb) {MEM/WB\\Register};
+        
+        % WB Stage
+        \node[stage, right=1.5cm of memwb] (wb_stage) {WB\\Stage};
+        \node[mux, below=0.4cm of wb_stage] (wb_mux) {WB\\MUX};
+        
+        % Main pipeline flow
+        \draw[signal] (pc) -- (if_stage);
+        \draw[signal] (if_stage) -- (imem);
+        \draw[signal] (pc) -- (pc_adder);
+        \draw[signal] (imem) -- (ifid);
+        \draw[signal] (pc_adder) -- (ifid);
+        \draw[signal] (ifid) -- (id_stage);
+        \draw[signal] (id_stage) -- (idex);
+        \draw[signal] (idex) -- (mux_rs1);
+        \draw[signal] (idex) -- (mux_rs2);
+        \draw[signal] (mux_rs1) -- (ex_stage);
+        \draw[signal] (mux_rs2) -- (ex_stage);
+        \draw[signal] (ex_stage) -- (exmem);
+        \draw[signal] (exmem) -- (mem_stage);
+        \draw[signal] (mem_stage) -- (memwb);
+        \draw[signal] (memwb) -- (wb_stage);
+        \draw[signal] (wb_stage) -- (wb_mux);
+        
+        % Control Unit connections
+        \draw[signal] (ifid) to[bend right=20] (control);
+        \draw[control] (control) to[bend left=5] (idex);
+        \draw[control] (control) to[bend right=15] (regfile);
+        \draw[control] (control) to[bend right=20] (forward_unit);
+        \draw[control] (control) to[bend right=25] (ex_stage);
+        \draw[control] (control) to[bend right=30] (mem_stage);
+        \draw[control] (control) to[bend right=35] (wb_stage);
+        
+        % Register File connections
+        \draw[signal] (ifid) to[bend right=25] (regfile);
+        \draw[signal] (regfile) to[bend left=5] (idex);
+        \draw[signal] (wb_mux) to[bend left=60, looseness=1.5] node[above, font=\tiny, sloped] {Write Data} (regfile);
+        
+        % Immediate Generator
+        \draw[signal] (ifid) to[bend right=30] (imm_gen);
+        \draw[signal] (imm_gen) to[bend left=10] (idex);
+        
+        % Forwarding paths from MEM stage (ALU result)
+        \draw[forward] (exmem) to[bend right=25, looseness=1.1] node[above, font=\tiny, sloped] {MEM ALU result} (mux_rs1);
+        \draw[forward] (exmem) to[bend right=30, looseness=1.1] node[below, font=\tiny, sloped] {MEM ALU result} (mux_rs2);
+        
+        % Forwarding paths from WB stage
+        \draw[forward] (memwb) to[bend right=40, looseness=1.2] node[above, font=\tiny, sloped] {WB data} (mux_rs1);
+        \draw[forward] (memwb) to[bend right=45, looseness=1.2] node[below, font=\tiny, sloped] {WB data} (mux_rs2);
+        
+        % Forwarding Unit connections
+        \draw[signal] (idex) to[bend left=20] node[above, font=\tiny] {ex\_rs1\_addr\\ex\_rs2\_addr} (forward_unit);
+        \draw[signal] (exmem) to[bend right=25] node[above, font=\tiny] {mem\_rd\_addr\\mem\_reg\_write} (forward_unit);
+        \draw[signal] (memwb) to[bend right=35] node[above, font=\tiny] {wb\_rd\_addr\\wb\_reg\_write} (forward_unit);
+        \draw[forward] (forward_unit) to[bend left=15] node[above, font=\tiny] {forward\_a[1:0]} (mux_rs1);
+        \draw[forward] (forward_unit) to[bend right=15] node[below, font=\tiny] {forward\_b[1:0]} (mux_rs2);
+        
+        % ALU connections (with forwarded data)
+        \draw[signal] (mux_rs1) to[bend right=5] (alu);
+        \draw[signal] (mux_rs2) to[bend right=5] (alu);
+        \draw[signal] (alu) -- (exmem);
+        
+        % Branch comparison (with forwarded data)
+        \draw[signal] (mux_rs1) to[bend left=10] (branch_comp);
+        \draw[signal] (mux_rs2) to[bend left=5] (branch_comp);
+        \draw[signal] (branch_comp) to[bend right=5] (ex_stage);
+        
+        % DMEM and I/O connections
+        \draw[signal] (exmem) to[bend right=5] (dmem);
+        \draw[signal] (exmem) to[bend right=10] (io_map);
+        \draw[signal] (dmem) -- (memwb);
+        \draw[signal] (io_map) -- (memwb);
+        
+        % Writeback MUX
+        \draw[signal] (memwb) to[bend right=5] (wb_mux);
+        
+        % Hazard Detection connections (for load-use hazards only)
+        \draw[stall] (hazard) to[bend left=20] node[above, font=\tiny] {stall\_if} (if_stage);
+        \draw[stall] (hazard) to[bend left=10] node[above, font=\tiny] {stall\_id} (id_stage);
+        \draw[stall] (hazard) to[bend right=10] node[below, font=\tiny] {flush\_ex} (ex_stage);
+        
+        % Hazard Detection inputs
+        \draw[signal, dashed, orange] (idex) to[bend left=30] (hazard);
+        \draw[signal, dashed, orange] (exmem) to[bend right=30] (hazard);
+        \draw[signal, dashed, orange] (id_stage) to[bend left=20] (hazard);
+        
+        % BTB and Branch Predictor connections
+        \draw[signal, dashed, purple] (pc) to[bend right=10] node[below, font=\tiny] {PC lookup} (btb);
+        \draw[signal, dashed, purple] (btb) to[bend left=10] node[above, font=\tiny] {predicted\_pc} (pc);
+        \draw[signal, dashed, purple] (btb) -- (predictor);
+        \draw[signal, dashed, purple] (predictor) to[bend right=5] (btb);
+        
+        % BTB update from EX stage (when branch/jump resolved)
+        \draw[signal, dashed, purple] (ex_stage) to[bend right=40, looseness=1.3] node[above, font=\tiny] {Update BTB} (btb);
+        
+        % PC selection (for branches/jumps and misprediction)
+        \draw[signal, dashed, blue] (ex_stage) to[bend left=50, looseness=1.2] node[above, font=\tiny] {Corrected PC\\(misprediction)} (pc);
+        
+        % Labels for MUX inputs
+        \node[left=0.4cm of mux_rs1, font=\tiny, text width=1.8cm, align=right] {00: ID/EX\\10: MEM\\01: WB};
+        \node[left=0.4cm of mux_rs2, font=\tiny, text width=1.8cm, align=right] {00: ID/EX\\10: MEM\\01: WB};
+        
+        % Labels
+        \node[above=0.3cm of forward_unit, font=\tiny, text width=3.5cm, align=center] {Compare: ex\_rs1\_addr, ex\_rs2\_addr\\vs mem\_rd\_addr, wb\_rd\_addr\\Priority: MEM > WB};
+        \node[above=0.2cm of hazard, font=\tiny, text width=4cm, align=center] {Detects load-use\\hazards and\\control hazards};
+        \node[above=0.1cm of btb, font=\tiny, text width=2.5cm, align=center] {Lookup: IF\\Update: EX};
+        \node[below=2.5cm of wb_mux, font=\footnotesize, text width=9cm, align=center, fill=blue!20, rounded corners, padding=2pt] {\textbf{Key:} Forwarding paths (blue dashed) eliminate most data hazards. MUX selection: 00=ID/EX, 10=MEM (priority), 01=WB. BTB (purple) provides branch prediction. Only load-use hazards require stalls.};
+        
+    \end{tikzpicture}
+    \caption{Forwarding Pipeline Architecture with BTB and Branch Predictor: Complete block diagram showing 5-stage pipeline with Forwarding Unit, BTB (256 entries), and two-bit dynamic branch predictor. Data from MEM and WB stages are forwarded to EX stage via MUXes, eliminating most data hazards without stalling. BTB provides predicted PC in IF stage and is updated in EX stage when branch/jump is resolved.}
+    \label{fig:forwarding_pipeline}
 \end{figure}
 \end{landscape}
 
