@@ -449,9 +449,9 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     \centering
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.2cm,
+        node distance=1.5cm,
         every node/.style={align=center},
-        scale=1.0,
+        scale=0.9,
         comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=blue!10, text centered, font=\small, align=center},
         mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20, align=center},
         logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny, align=center},
@@ -460,45 +460,45 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
     ]
         % Inputs from EX/MEM
         \node[comp] (exmem_alu) {EX/MEM\\ALU result};
-        \node[comp, below=0.5cm of exmem_alu] (exmem_rs2) {EX/MEM\\rs2\_data};
-        \node[comp, below=0.5cm of exmem_rs2] (exmem_addr) {Address\\(ALU result)};
+        \node[comp, below=0.8cm of exmem_alu] (exmem_rs2) {EX/MEM\\rs2\_data};
+        \node[comp, below=0.8cm of exmem_rs2] (exmem_addr) {Address\\(ALU result)};
         
         % Address decoder
-        \node[logic, right=2cm of exmem_addr] (addr_decode) {Address\\Decoder};
+        \node[logic, right=2.5cm of exmem_addr] (addr_decode) {Address\\Decoder};
         
         % DMEM
-        \node[comp, below=2cm of addr_decode] (dmem) {DMEM\\Sync};
+        \node[comp, below=2.5cm of addr_decode] (dmem) {DMEM\\Sync};
         
-        % I/O mapping
-        \node[io, above=1cm of addr_decode] (io_ledr) {LEDR};
-        \node[io, above=0.5cm of io_ledr] (io_ledg) {LEDG};
-        \node[io, above=0.5cm of io_ledg] (io_hex) {HEX0-7};
-        \node[io, above=0.5cm of io_hex] (io_lcd) {LCD};
-        \node[io, below=0.5cm of dmem] (io_sw) {Switches};
+        % I/O mapping - increased spacing
+        \node[io, above=1.2cm of addr_decode] (io_ledr) {LEDR};
+        \node[io, above=0.8cm of io_ledr] (io_ledg) {LEDG};
+        \node[io, above=0.8cm of io_ledg] (io_hex) {HEX0-7};
+        \node[io, above=0.8cm of io_hex] (io_lcd) {LCD};
+        \node[io, below=0.8cm of dmem] (io_sw) {Switches};
         
         % Read MUX
-        \node[mux, right=3cm of addr_decode] (read_mux) {Read\\MUX};
+        \node[mux, right=3.5cm of addr_decode] (read_mux) {Read\\MUX};
         
         % Output
-        \node[comp, right=1.5cm of read_mux] (mem_rdata) {MEM\\rdata};
+        \node[comp, right=2cm of read_mux] (mem_rdata) {MEM\\rdata};
         
-        % Connections
+        % Connections - use bends to avoid overlap
         \draw[signal] (exmem_alu) -- (exmem_addr);
         \draw[signal] (exmem_addr) -- (addr_decode);
-        \draw[signal] (exmem_rs2) -- (dmem);
-        \draw[signal] (addr_decode) -- (dmem);
-        \draw[signal] (addr_decode) -- (io_ledr);
-        \draw[signal] (addr_decode) -- (io_ledg);
-        \draw[signal] (addr_decode) -- (io_hex);
-        \draw[signal] (addr_decode) -- (io_lcd);
-        \draw[signal] (addr_decode) -- (io_sw);
+        \draw[signal] (exmem_rs2) to[bend left=10] (dmem);
+        \draw[signal] (addr_decode) to[bend right=10] (dmem);
+        \draw[signal] (addr_decode) to[bend left=5] (io_ledr);
+        \draw[signal] (addr_decode) to[bend left=8] (io_ledg);
+        \draw[signal] (addr_decode) to[bend left=11] (io_hex);
+        \draw[signal] (addr_decode) to[bend left=14] (io_lcd);
+        \draw[signal] (addr_decode) to[bend right=5] (io_sw);
         
-        \draw[signal] (dmem) -- (read_mux);
-        \draw[signal] (io_ledr) -- (read_mux);
-        \draw[signal] (io_ledg) -- (read_mux);
-        \draw[signal] (io_hex) -- (read_mux);
-        \draw[signal] (io_lcd) -- (read_mux);
-        \draw[signal] (io_sw) -- (read_mux);
+        \draw[signal] (dmem) to[bend left=5] (read_mux);
+        \draw[signal] (io_ledr) to[bend left=8] (read_mux);
+        \draw[signal] (io_ledg) to[bend left=11] (read_mux);
+        \draw[signal] (io_hex) to[bend left=14] (read_mux);
+        \draw[signal] (io_lcd) to[bend left=17] (read_mux);
+        \draw[signal] (io_sw) to[bend right=5] (read_mux);
         \draw[signal] (read_mux) -- (mem_rdata);
         
     \end{tikzpicture}
