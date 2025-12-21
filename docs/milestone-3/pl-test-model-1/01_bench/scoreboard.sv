@@ -30,9 +30,13 @@ module scoreboard(
   real ipc;            // Instructino Per Cycle
   real misprd_rate;    // Misprediction Rate
 
+  // Track previous LEDR value to detect changes
+  logic [7:0] prev_ledr;
+
   // Display test name
   initial begin
     $display("\nPIPELINE - ISA tests\n");
+    prev_ledr = 8'b0;
   end
 
 
@@ -53,35 +57,32 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : debug
-      if (o_insn_vld && (o_pc_debug == 32'h18)) begin
+      // Print character when LEDR[7:0] changes (similar to single cycle)
+      if ((o_io_ledr[7:0] != prev_ledr) && (o_io_ledr[7:0] != 8'b0)) begin
           $write("%s", o_io_ledr[7:0]);
+      end
+      // Update previous value every cycle
+      if (!i_reset) begin
+          prev_ledr <= 8'b0;
+      end
+      else begin
+          prev_ledr <= o_io_ledr[7:0];
       end
   end
 
 
   always @(negedge i_clk) begin : result
       if (o_insn_vld && ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20))) begin
-        $display("\n=================== Result ===================");
-        if (num_cycle != 0) $display("Total Clock Cycles Executed = %1.0f", num_cycle);
-        else                $display("Total Clock Cycles Executed = N/A");
-
-        if (num_insn  != 0) $display("Total Instructions Executed = %1.0f", num_insn);
-        else                $display("Total Instructions Executed = N/A");
-
-        if (num_cycle != 0) $display("Total Branch Instructions   = %1.0f", num_ctrl);
-        else                $display("Total Branch Instructions   = N/A");
-
-        if (num_cycle != 0) $display("Total Branch Mispredictions = %1.0f", num_mispred);
-        else                $display("Total Branch Mispredictions = N/A");
-
-        $display("\n----------------------------------------------");
-        if (num_cycle != 0) $display("Instruction Per Cycle (IPC) = %1.2f", num_insn/num_cycle);
-        else                $display("Instruction Per Cycle (IPC) = N/A");
-
-        if (num_ctrl != 0)  $display("Branch Misprediction Rate   = %2.2f %%", num_mispred/num_ctrl * 100);
-        else                $display("Branch Misprediction Rate   = N/A");
-
-        $display("\nEND of ISA tests\n");
+        $display("\nResult");
+        $display("");
+        if (num_cycle != 0) $display("IPC = %1.2f", num_insn/num_cycle);
+        else                $display("IPC = N/A");
+        
+        if (num_ctrl != 0)  $display("Mispred Rate = %2.2f", num_mispred/num_ctrl * 100);
+        else                $display("Mispred Rate = N/A");
+        
+        $display("");
+        $display("END of ISA tests");
         $finish;
       end
   end
