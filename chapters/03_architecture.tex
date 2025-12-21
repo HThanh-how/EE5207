@@ -57,11 +57,11 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
 
 \begin{figure}[ht]
     \centering
-    \makebox[\textwidth]{%
-    \resizebox{\textwidth}{!}{%
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.5cm and 2cm,
+        node distance=1.2cm and 1.5cm,
+        scale=0.7,
+        transform shape,
         stage/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1.5cm, fill=blue!10, text centered},
         module/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=1cm, fill=green!10, text centered},
         reg/.style={rectangle, draw, minimum width=1.8cm, minimum height=0.8cm, fill=orange!15, text centered, font=\small},
@@ -181,8 +181,6 @@ Unless otherwise stated, this chapter focuses on the Milestone~3 pipelined archi
         \draw[signal] (memwb) to[bend left=30] node[above, font=\tiny] {pc+4} (wb_mux);
         
     \end{tikzpicture}
-    }%
-    }%
     \caption{Complete block diagram of the five-stage pipelined RISC-V processor showing all major components, pipeline registers, forwarding paths, hazard detection, and branch prediction.}
     \label{fig:pipeline_block_diagram}
 \end{figure}
@@ -351,11 +349,11 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \begin{figure}[ht]
     \centering
-    \makebox[0.9\textwidth]{%
-    \resizebox{0.9\textwidth}{!}{%
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.2cm,
+        node distance=1.0cm,
+        scale=0.75,
+        transform shape,
         comp/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=blue!10, text centered, font=\small},
         mux/.style={rectangle, draw, minimum width=0.8cm, minimum height=0.6cm, fill=yellow!20},
         logic/.style={rectangle, draw, rounded corners, minimum width=1.5cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny},
@@ -424,8 +422,6 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \draw[signal, dashed, blue] (wb_data) to[bend right=30] (mux_rs2);
         
     \end{tikzpicture}
-    }%
-    }%
     \caption{EX Stage detailed block diagram showing ALU, forwarding MUXes, branch comparison, and target calculation.}
     \label{fig:ex_stage_detail}
 \end{figure}
@@ -434,11 +430,11 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
 
 \begin{figure}[ht]
     \centering
-    \makebox[0.85\textwidth]{%
-    \resizebox{0.85\textwidth}{!}{%
     \begin{tikzpicture}[
         >=stealth,
-        node distance=1.5cm,
+        node distance=1.2cm,
+        scale=0.8,
+        transform shape,
         comp/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, fill=blue!10, text centered, font=\small},
         mux/.style={rectangle, draw, minimum width=1cm, minimum height=0.8cm, fill=yellow!20},
         logic/.style={rectangle, draw, rounded corners, minimum width=2cm, minimum height=0.8cm, fill=green!10, text centered, font=\tiny},
@@ -489,8 +485,6 @@ The block diagram in Figure~\ref{fig:pipeline_block_diagram} illustrates the com
         \draw[signal] (read_mux) -- (mem_rdata);
         
     \end{tikzpicture}
-    }%
-    }%
     \caption{MEM Stage block diagram showing DMEM access and I/O memory mapping with address decoder.}
     \label{fig:mem_stage_detail}
 \end{figure}
