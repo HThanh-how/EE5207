@@ -611,8 +611,8 @@ module pipelined (
     // ============================================
     // Outputs
     // ============================================
-    // Use WB-stage PC for debug (commit PC)
-    assign o_pc_debug = wb_pc;
+    // Use IF-stage PC for debug, consistent with baseline pl-test.
+    assign o_pc_debug = pc;
     assign o_insn_vld = wb_enable;
     assign o_ctrl = wb_is_ctrl && wb_enable;
     assign o_mispred = wb_mispred && wb_enable;
