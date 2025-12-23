@@ -53,13 +53,16 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : debug
-      if (o_insn_vld && (o_pc_debug == 32'h18)) begin
+      // Match milestone-2 baseline: check PC only, no o_insn_vld requirement
+      // This ensures characters are printed when the print_char function returns
+      if (o_pc_debug == 32'h18) begin
           $write("%s", o_io_ledr[7:0]);
       end
   end
 
 
   always @(negedge i_clk) begin : result
+      // MUST use o_insn_vld to ensure instruction actually retires (not just appears in pipeline)
       if (o_insn_vld && ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20))) begin
         $display("\n=================== Result ===================");
         if (num_cycle != 0) $display("Total Clock Cycles Executed = %1.0f", num_cycle);

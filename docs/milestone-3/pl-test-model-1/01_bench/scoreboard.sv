@@ -76,6 +76,7 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : result
+      // MUST use o_insn_vld to ensure instruction actually retires (not just appears in pipeline)
       if (o_insn_vld && ((o_pc_debug == 32'h1c) || (o_pc_debug == 32'h20))) begin
         $display("\nResult");
         $display("");
