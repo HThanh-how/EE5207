@@ -1,0 +1,14 @@
+1765512893 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/data_mem.sv
+1765512898 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/instr_mem.sv
+1765508892 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/reg_file.sv
+1765508996 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/alu.sv
+1765509024 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/control_unit.sv
+1765509051 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/branch_comp.sv
+1765509073 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/hazard_unit.sv
+1765509088 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/forwarding_unit.sv
+1765509105 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/imm_gen.sv
+1765511339 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/lsu.sv
+1765512413 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/00_src/pipelined.sv
+1765507958 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/01_bench/driver.sv
+1765512930 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/01_bench/scoreboard.sv
+1765512478 /ASIC3/users/nam_ho/steven/Single-Core-CPU-main/milestone3/01_bench/tbench.sv

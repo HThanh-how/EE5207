@@ -1,0 +1,84 @@
+xrun: 23.03-s006: (c) Copyright 1995-2023 Cadence Design Systems, Inc.
+TOOL:	xrun	23.03-s006: Started on Dec 12, 2025 at 12:28:38 CST
+xrun
+	-access +rwc
+	-f ./flist.f
+		-sv
+		-timescale 1ns/100ps
+		+incdir+./../01_bench
+		./../00_src/data_mem.sv
+		./../00_src/instr_mem.sv
+		./../00_src/reg_file.sv
+		./../00_src/alu.sv
+		./../00_src/control_unit.sv
+		./../00_src/branch_comp.sv
+		./../00_src/hazard_unit.sv
+		./../00_src/forwarding_unit.sv
+		./../00_src/imm_gen.sv
+		./../00_src/lsu.sv
+		./../00_src/pipelined.sv
+		./../01_bench/driver.sv
+		./../01_bench/scoreboard.sv
+		./../01_bench/tbench.sv
+Loading snapshot worklib.tbench:sv .................... Done
+xcelium> source /eda/cdsXCELIUM/XCELIUM23.03.006/tools/xcelium/files/xmsimrc
+xcelium> run
+
+PIPELINE - ISA tests
+
+add......PASS
+addi.....PASS
+sub......PASS
+and......PASS
+andi.....PASS
+or.......PASS
+ori......PASS
+xor......PASS
+xori.....PASS
+slt......PASS
+slti.....PASS
+sltu.....PASS
+sltiu....PASS
+sll......PASS
+slli.....PASS
+srl......PASS
+srli.....PASS
+sra......PASS
+srai.....PASS
+lw.......PASS
+lh.......PASS
+lhu......PASS
+lb.......PASS
+lbu......PASS
+sw.......PASS
+sh.......PASS
+sb.......PASS
+auipc....PASS
+lui......PASS
+beq......PASS
+bne......PASS
+blt......PASS
+bltu.....PASS
+bge......PASS
+bgeu.....PASS
+jal......PASS
+jalr.....PASS
+malgn....ERROR
+iosw.....PASS
+
+=================== Result ===================
+Total Clock Cycles Executed = 7841
+Total Instructions Executed = 4830
+Total Branch Instructions   = 1604
+Total Branch Mispredictions = 1452
+
+----------------------------------------------
+Instruction Per Cycle (IPC) = 0.62
+Branch Misprediction Rate   = 90.52 %
+
+END of ISA tests
+
+Simulation complete via $finish(1) at time 31416 NS + 1
+../01_bench/scoreboard.sv:84         $finish;
+xcelium> exit
+TOOL:	xrun	23.03-s006: Exiting on Dec 12, 2025 at 12:28:40 CST  (total: 00:00:02)
