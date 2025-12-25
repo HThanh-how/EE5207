@@ -10,23 +10,19 @@ module alu (
     output logic [31:0] o_result
 );
 
-    // ALU operation codes
-    localparam ALU_ADD  = 4'b0000;  // ADD
-    localparam ALU_SUB  = 4'b0001;  // SUB
-    localparam ALU_SLL  = 4'b0010;  // Shift Left Logical
-    localparam ALU_SLT  = 4'b0011;  // Set Less Than (signed)
-    localparam ALU_SLTU = 4'b0100;  // Set Less Than Unsigned
-    localparam ALU_XOR  = 4'b0101;  // XOR
-    localparam ALU_SRL  = 4'b0110;  // Shift Right Logical
-    localparam ALU_SRA  = 4'b0111;  // Shift Right Arithmetic
-    localparam ALU_OR   = 4'b1000;  // OR
-    localparam ALU_AND  = 4'b1001;  // AND
+    localparam ALU_ADD  = 4'b0000;
+    localparam ALU_SUB  = 4'b0001;
+    localparam ALU_SLL  = 4'b0010;
+    localparam ALU_SLT  = 4'b0011;
+    localparam ALU_SLTU = 4'b0100;
+    localparam ALU_XOR  = 4'b0101;
+    localparam ALU_SRL  = 4'b0110;
+    localparam ALU_SRA  = 4'b0111;
+    localparam ALU_OR   = 4'b1000;
+    localparam ALU_AND  = 4'b1001;
 
-    // Shift amount
     logic [4:0] shamt;
     assign shamt = i_op2[4:0];
-
-    // ALU operation
     always_comb begin
         case (i_alu_op)
             ALU_ADD:  o_result = i_op1 + i_op2;

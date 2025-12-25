@@ -15,7 +15,6 @@ module branch_comp (
     output logic        o_br_taken
 );
 
-    // Branch function codes
     localparam BEQ  = 3'b000;
     localparam BNE  = 3'b001;
     localparam BLT  = 3'b100;
@@ -23,7 +22,6 @@ module branch_comp (
     localparam BLTU = 3'b110;
     localparam BGEU = 3'b111;
 
-    // Comparison results
     logic eq;
     logic lt_signed;
     logic lt_unsigned;
@@ -32,10 +30,8 @@ module branch_comp (
     assign lt_signed   = ($signed(i_rs1) < $signed(i_rs2));
     assign lt_unsigned = (i_rs1 < i_rs2);
 
-    // Branch decision logic
     always_comb begin
         if (i_jal || i_jalr) begin
-            // Unconditional jumps
             o_br_taken = 1'b1;
         end else if (i_branch) begin
             case (i_funct3)

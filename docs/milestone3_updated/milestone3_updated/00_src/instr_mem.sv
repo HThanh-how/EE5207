@@ -17,17 +17,14 @@ module instr_mem #(
     // Memory array
     logic [31:0] mem [0:MEM_DEPTH-1];
 
-    // Initialize memory - first zero everything (NOP), then load hex file
-    integer i;
+    integer imem_idx;
     initial begin
-        for (i = 0; i < MEM_DEPTH; i = i + 1) begin
-            mem[i] = 32'h00000013;  // NOP (addi x0, x0, 0)
+        for (imem_idx = 0; imem_idx < MEM_DEPTH; imem_idx = imem_idx + 1) begin
+            mem[imem_idx] = 32'h00000013;  // NOP
         end
         $readmemh(MEM_FILE, mem);
     end
 
-    // Asynchronous read (combinational) - suitable for simulation
-    // The pipeline register in IF/ID stage provides the necessary registration
     assign o_instr = mem[i_addr];
 
 endmodule : instr_mem

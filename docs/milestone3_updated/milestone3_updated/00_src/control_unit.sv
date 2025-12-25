@@ -21,7 +21,6 @@ module control_unit (
     output logic        o_auipc
 );
 
-    // Opcode definitions
     localparam OP_LUI    = 7'b0110111;
     localparam OP_AUIPC  = 7'b0010111;
     localparam OP_JAL    = 7'b1101111;
@@ -32,7 +31,6 @@ module control_unit (
     localparam OP_IMM    = 7'b0010011;
     localparam OP_REG    = 7'b0110011;
 
-    // ALU operation codes
     localparam ALU_ADD  = 4'b0000;
     localparam ALU_SUB  = 4'b0001;
     localparam ALU_SLL  = 4'b0010;
@@ -44,14 +42,11 @@ module control_unit (
     localparam ALU_OR   = 4'b1000;
     localparam ALU_AND  = 4'b1001;
 
-    // Write-back selection
     localparam WB_ALU  = 2'b00;
     localparam WB_MEM  = 2'b01;
     localparam WB_PC4  = 2'b10;
 
-    // Control signal generation
     always_comb begin
-        // Default values
         o_reg_wr_en = 1'b0;
         o_wb_sel    = WB_ALU;
         o_mem_wr_en = 1'b0;
@@ -113,14 +108,14 @@ module control_unit (
                 o_reg_wr_en = 1'b1;
                 o_alu_src   = 1'b1;
                 case (i_funct3)
-                    3'b000: o_alu_op = ALU_ADD;   // ADDI
-                    3'b010: o_alu_op = ALU_SLT;   // SLTI
-                    3'b011: o_alu_op = ALU_SLTU;  // SLTIU
-                    3'b100: o_alu_op = ALU_XOR;   // XORI
-                    3'b110: o_alu_op = ALU_OR;    // ORI
-                    3'b111: o_alu_op = ALU_AND;   // ANDI
-                    3'b001: o_alu_op = ALU_SLL;   // SLLI
-                    3'b101: o_alu_op = i_funct7[5] ? ALU_SRA : ALU_SRL;  // SRAI/SRLI
+                    3'b000: o_alu_op = ALU_ADD;
+                    3'b010: o_alu_op = ALU_SLT;
+                    3'b011: o_alu_op = ALU_SLTU;
+                    3'b100: o_alu_op = ALU_XOR;
+                    3'b110: o_alu_op = ALU_OR;
+                    3'b111: o_alu_op = ALU_AND;
+                    3'b001: o_alu_op = ALU_SLL;
+                    3'b101: o_alu_op = i_funct7[5] ? ALU_SRA : ALU_SRL;
                     default: o_alu_op = ALU_ADD;
                 endcase
             end
@@ -128,20 +123,19 @@ module control_unit (
             OP_REG: begin
                 o_reg_wr_en = 1'b1;
                 case (i_funct3)
-                    3'b000: o_alu_op = i_funct7[5] ? ALU_SUB : ALU_ADD;  // SUB/ADD
-                    3'b001: o_alu_op = ALU_SLL;   // SLL
-                    3'b010: o_alu_op = ALU_SLT;   // SLT
-                    3'b011: o_alu_op = ALU_SLTU;  // SLTU
-                    3'b100: o_alu_op = ALU_XOR;   // XOR
-                    3'b101: o_alu_op = i_funct7[5] ? ALU_SRA : ALU_SRL;  // SRA/SRL
-                    3'b110: o_alu_op = ALU_OR;    // OR
-                    3'b111: o_alu_op = ALU_AND;   // AND
+                    3'b000: o_alu_op = i_funct7[5] ? ALU_SUB : ALU_ADD;
+                    3'b001: o_alu_op = ALU_SLL;
+                    3'b010: o_alu_op = ALU_SLT;
+                    3'b011: o_alu_op = ALU_SLTU;
+                    3'b100: o_alu_op = ALU_XOR;
+                    3'b101: o_alu_op = i_funct7[5] ? ALU_SRA : ALU_SRL;
+                    3'b110: o_alu_op = ALU_OR;
+                    3'b111: o_alu_op = ALU_AND;
                     default: o_alu_op = ALU_ADD;
                 endcase
             end
 
             default: begin
-                // NOP or invalid instruction
                 o_reg_wr_en = 1'b0;
             end
         endcase

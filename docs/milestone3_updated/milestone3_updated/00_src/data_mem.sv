@@ -19,16 +19,14 @@ module data_mem #(
     // Memory array
     logic [31:0] mem [0:MEM_DEPTH-1];
 
-    // Initialize memory - first zero everything, then load hex file
-    integer i;
+    integer dmem_idx;
     initial begin
-        for (i = 0; i < MEM_DEPTH; i = i + 1) begin
-            mem[i] = 32'h0;
+        for (dmem_idx = 0; dmem_idx < MEM_DEPTH; dmem_idx = dmem_idx + 1) begin
+            mem[dmem_idx] = 32'h0;
         end
         $readmemh(MEM_FILE, mem);
     end
 
-    // Synchronous write with byte enables
     always_ff @(posedge i_clk) begin
         if (i_we[0]) mem[i_addr][7:0]   <= i_wdata[7:0];
         if (i_we[1]) mem[i_addr][15:8]  <= i_wdata[15:8];
@@ -36,7 +34,6 @@ module data_mem #(
         if (i_we[3]) mem[i_addr][31:24] <= i_wdata[31:24];
     end
 
-    // Asynchronous read (combinational) for simulation
     assign o_rdata = mem[i_addr];
 
 endmodule : data_mem

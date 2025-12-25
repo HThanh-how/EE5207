@@ -22,10 +22,10 @@ module reg_file (
     logic [31:0] regs [0:31];
 
     // Initialize registers
-    integer i;
+    integer reg_idx;
     initial begin
-        for (i = 0; i < 32; i = i + 1) begin
-            regs[i] = 32'h0;
+        for (reg_idx = 0; reg_idx < 32; reg_idx = reg_idx + 1) begin
+            regs[reg_idx] = 32'h0;
         end
     end
 
@@ -36,23 +36,22 @@ module reg_file (
         end
     end
 
-    // Read port 1 with write-through
+    // Read ports with write-through
     always_comb begin
         if (i_rs1_addr == 5'h0) begin
             o_rs1_data = 32'h0;
         end else if (i_wr_en && (i_rs1_addr == i_rd_addr)) begin
-            o_rs1_data = i_rd_data;  // Write-through
+            o_rs1_data = i_rd_data;
         end else begin
             o_rs1_data = regs[i_rs1_addr];
         end
     end
 
-    // Read port 2 with write-through
     always_comb begin
         if (i_rs2_addr == 5'h0) begin
             o_rs2_data = 32'h0;
         end else if (i_wr_en && (i_rs2_addr == i_rd_addr)) begin
-            o_rs2_data = i_rd_data;  // Write-through
+            o_rs2_data = i_rd_data;
         end else begin
             o_rs2_data = regs[i_rs2_addr];
         end
