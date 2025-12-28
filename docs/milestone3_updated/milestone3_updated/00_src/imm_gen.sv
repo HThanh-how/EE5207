@@ -9,7 +9,6 @@ module imm_gen (
     output logic [31:0] o_imm
 );
 
-    // Opcode definitions
     localparam OP_LUI    = 7'b0110111;
     localparam OP_AUIPC  = 7'b0010111;
     localparam OP_JAL    = 7'b1101111;
@@ -23,29 +22,17 @@ module imm_gen (
     logic [6:0] opcode;
     assign opcode = i_instr[6:0];
 
-    // Immediate extraction for different instruction types
-    logic [31:0] i_imm;  // I-type
-    logic [31:0] s_imm;  // S-type
-    logic [31:0] b_imm;  // B-type
-    logic [31:0] u_imm;  // U-type
-    logic [31:0] j_imm;  // J-type
+    logic [31:0] i_imm;
+    logic [31:0] s_imm;
+    logic [31:0] b_imm;
+    logic [31:0] u_imm;
+    logic [31:0] j_imm;
 
-    // I-type: imm[11:0] = instr[31:20]
     assign i_imm = {{20{i_instr[31]}}, i_instr[31:20]};
-
-    // S-type: imm[11:5|4:0] = instr[31:25|11:7]
     assign s_imm = {{20{i_instr[31]}}, i_instr[31:25], i_instr[11:7]};
-
-    // B-type: imm[12|10:5|4:1|11] = instr[31|30:25|11:8|7]
     assign b_imm = {{19{i_instr[31]}}, i_instr[31], i_instr[7], i_instr[30:25], i_instr[11:8], 1'b0};
-
-    // U-type: imm[31:12] = instr[31:12], lower 12 bits are 0
     assign u_imm = {i_instr[31:12], 12'b0};
-
-    // J-type: imm[20|10:1|11|19:12] = instr[31|30:21|20|19:12]
     assign j_imm = {{11{i_instr[31]}}, i_instr[31], i_instr[19:12], i_instr[20], i_instr[30:21], 1'b0};
-
-    // Select appropriate immediate based on opcode
     always_comb begin
         case (opcode)
             OP_LUI,
