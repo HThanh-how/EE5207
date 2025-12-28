@@ -53,9 +53,7 @@ module scoreboard(
 
 
   always @(negedge i_clk) begin : debug
-      // Match milestone-2 baseline: check PC only, no o_insn_vld requirement
-      // This ensures characters are printed when the print_char function returns
-      if (o_pc_debug == 32'h18) begin
+      if (o_insn_vld && (o_pc_debug == 32'h18)) begin
           $write("%s", o_io_ledr[7:0]);
       end
   end
