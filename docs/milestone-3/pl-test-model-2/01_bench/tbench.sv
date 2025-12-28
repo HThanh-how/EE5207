@@ -1,6 +1,8 @@
+`include "tlib.svh"
+
 `define RESET_PERIOD 51
 `define CLOCK_PERIOD 2
-`define TIMEOUT      50_000
+`define TIMEOUT      100_000
 
 module tbench;
 

@@ -1,17 +1,24 @@
-// Pipelined RISC-V Processor - Milestone 3
-// Model 1: Non-Forwarding with Two-bit Branch Prediction
-// Features:
-// - No Forwarding Unit (stall on data hazards)
-// - Hazard Detection for load-use hazards and data hazards
-// - Two-bit Dynamic Branch Predictor with BTB
-// - BRAM memory support
-module pipelined (
+//----------------------------------------------------------------------//
+//  Design Note
+//----------------------------------------------------------------------//
+//  1. Instruction Memory Depth (IMEM): At least 8  kiB to run the "isa_1b.hex" or "isa_4b.hex"
+//  2. Data        Memory Depth (DMEM): At least 64 kiB (0x0000_0000 - 0x0000_FFFF)
+//  3. IMEM and DMEM are separate memory blocks.
+//  4. 5-Stage Pipeline: IF -> ID -> EX -> MEM -> WB
+//  5. Supports both Non-forwarding and Forwarding modes via parameter
+//  Model 2: Forwarding (FORWARDING_EN = 1)
+
+module pipelined #(
+    parameter FORWARDING_EN = 1  // 1: Forwarding enabled (Model 2)
+)(
     input  logic         i_clk     ,
     input  logic         i_reset   ,
+    // Input peripherals
     input  logic [31:0]  i_io_sw   ,
+    // Output peripherals
+    output logic [31:0]  o_io_lcd  ,
     output logic [31:0]  o_io_ledr ,
     output logic [31:0]  o_io_ledg ,
-    output logic [31:0]  o_io_lcd  ,
     output logic [ 6:0]  o_io_hex0 ,
     output logic [ 6:0]  o_io_hex1 ,
     output logic [ 6:0]  o_io_hex2 ,
@@ -20,806 +27,553 @@ module pipelined (
     output logic [ 6:0]  o_io_hex5 ,
     output logic [ 6:0]  o_io_hex6 ,
     output logic [ 6:0]  o_io_hex7 ,
+    // Debug
     output logic [31:0]  o_pc_debug,
     output logic         o_insn_vld,
     output logic         o_ctrl    ,
     output logic         o_mispred
 );
 
-    // ============================================
-    // Pipeline Stage Signals
-    // ============================================
-    
-    // IF Stage
-    logic [31:0] pc;
+    //==========================================================================
+    // Signal Declarations
+    //==========================================================================
+
+    // IF Stage signals
+    logic [31:0] pc_if;
     logic [31:0] pc_next;
-    logic [31:0] pc_plus4;
-    logic [31:0] if_instruction;
-    logic        if_enable;
-    logic        if_flush;
-    
-    // Branch Prediction signals
-    logic [31:0] predicted_pc;
-    logic        btb_hit;
-    logic        predict_taken;
-    
-    // IF/ID Pipeline Register
-    logic [31:0] id_pc;
-    logic [31:0] id_pc_plus4;
-    logic [31:0] id_instruction;
-    logic        id_enable;
-    logic        id_flush;
-    
-    // ID Stage
-    logic [31:0] id_imm;
-    logic [31:0] id_rs1_data;
-    logic [31:0] id_rs2_data;
-    logic [ 4:0] id_rs1_addr;
-    logic [ 4:0] id_rs2_addr;
-    logic [ 4:0] id_rd_addr;
-    
-    // Control signals from ID stage
-    logic        id_reg_write;
-    logic        id_mem_write;
-    logic        id_mem_read;
-    logic [1:0]  id_mem_to_reg;
-    logic [1:0]  id_alu_src_a;
-    logic [1:0]  id_alu_src_b;
-    logic [3:0]  id_alu_op;
-    logic        id_branch;
-    logic        id_jump;
-    logic [2:0]  id_mem_size;
-    logic        id_pc_src;
-    logic        id_is_load;
-    
-    // ID/EX Pipeline Register
-    logic [31:0] ex_pc;
-    logic [31:0] ex_pc_plus4;
-    logic [31:0] ex_rs1_data;
-    logic [31:0] ex_rs2_data;
-    logic [31:0] ex_imm;
-    logic [ 4:0] ex_rs1_addr;
-    logic [ 4:0] ex_rs2_addr;
-    logic [ 4:0] ex_rd_addr;
-    logic [ 2:0] ex_funct3;
-    logic        ex_reg_write;
-    logic        ex_mem_write;
-    logic        ex_mem_read;
-    logic [1:0]  ex_mem_to_reg;
-    logic [1:0]  ex_alu_src_a;
-    logic [1:0]  ex_alu_src_b;
-    logic [3:0]  ex_alu_op;
-    logic        ex_branch;
-    logic        ex_jump;
-    logic [2:0]  ex_mem_size;
-    logic        ex_pc_src;
-    logic        ex_is_load;
-    logic        ex_enable;
-    logic        ex_flush;
-    logic        ex_predicted_taken;  // Predicted direction from IF stage
-    
-    // EX Stage
-    logic [31:0] ex_alu_a;
-    logic [31:0] ex_alu_b;
-    logic [31:0] ex_alu_result;
-    logic        ex_alu_zero;
-    logic [31:0] ex_branch_target;
-    logic [31:0] ex_jump_target;
-    logic        ex_branch_taken;
-    logic        ex_is_ctrl;
-    
-    // Forwarding signals
-    logic [1:0]  forward_a;
-    logic [1:0]  forward_b;
-    logic [31:0] forward_rs1_data;
-    logic [31:0] forward_rs2_data;
-    
-    // EX/MEM Pipeline Register
-    logic [31:0] mem_pc;
-    logic [31:0] mem_pc_plus4;
-    logic [31:0] mem_alu_result;
-    logic [31:0] mem_rs2_data;
-    logic [ 4:0] mem_rd_addr;
-    logic        mem_reg_write;
-    logic        mem_mem_write;
-    logic        mem_mem_read;
-    logic [1:0]  mem_mem_to_reg;
-    logic [2:0]  mem_mem_size;
-    logic        mem_is_ctrl;
-    logic        mem_branch_taken;
-    logic        mem_predicted_taken;
-    logic        mem_is_branch;  // Distinguish branch from jump
-    logic        mem_enable;
-    logic        mem_flush;
-    
-    // MEM Stage
-    logic [31:0] mem_addr;
-    logic [31:0] mem_wdata;
-    logic [31:0] mem_rdata;
-    logic [31:0] mem_io_data;
-    
-    // MEM/WB Pipeline Register
-    logic [31:0] wb_pc;
-    logic [31:0] wb_pc_plus4;
-    logic [31:0] wb_alu_result;
-    logic [31:0] wb_mem_rdata;
-    logic [31:0] wb_io_data;
-    logic [ 4:0] wb_rd_addr;
-    logic        wb_reg_write;
-    logic [1:0]  wb_mem_to_reg;
-    logic        wb_is_ctrl;
-    logic        wb_enable;
-    logic        wb_mispred;
-    
-    // WB Stage
-    logic [31:0] wb_reg_wdata;
-    
-    // Hazard Detection
+    logic [31:0] pc_plus4_if;
+    logic [31:0] instr_if;
+
+    // ID Stage signals
+    logic [31:0] pc_id;
+    logic [31:0] pc_plus4_id;
+    logic [31:0] instr_id;
+    logic        insn_vld_id;
+    logic [31:0] rs1_data_id;
+    logic [31:0] rs2_data_id;
+    logic [31:0] imm_id;
+    logic [ 4:0] rs1_addr_id;
+    logic [ 4:0] rs2_addr_id;
+    logic [ 4:0] rd_addr_id;
+
+    // ID Stage control signals
+    logic        reg_wr_en_id;
+    logic [ 1:0] wb_sel_id;
+    logic        mem_wr_en_id;
+    logic [ 2:0] mem_op_id;
+    logic [ 3:0] alu_op_id;
+    logic        alu_src_id;
+    logic        branch_id;
+    logic        jal_id;
+    logic        jalr_id;
+    logic        lui_id;
+    logic        auipc_id;
+
+    // EX Stage signals
+    logic [31:0] pc_ex;
+    logic [31:0] pc_plus4_ex;
+    logic [31:0] rs1_data_ex;
+    logic [31:0] rs2_data_ex;
+    logic [31:0] imm_ex;
+    logic [ 4:0] rs1_addr_ex;
+    logic [ 4:0] rs2_addr_ex;
+    logic [ 4:0] rd_addr_ex;
+    logic        insn_vld_ex;
+    logic        ctrl_ex;
+
+    // EX Stage control signals
+    logic        reg_wr_en_ex;
+    logic [ 1:0] wb_sel_ex;
+    logic        mem_wr_en_ex;
+    logic [ 2:0] mem_op_ex;
+    logic [ 3:0] alu_op_ex;
+    logic        alu_src_ex;
+    logic        branch_ex;
+    logic        jal_ex;
+    logic        jalr_ex;
+    logic        lui_ex;
+    logic        auipc_ex;
+
+    // EX Stage computed signals
+    logic [31:0] alu_result_ex;
+    logic [31:0] alu_op1;
+    logic [31:0] alu_op2;
+    logic        br_taken;
+    logic [31:0] br_target;
+
+    // MEM Stage signals
+    logic [31:0] pc_mem;
+    logic [31:0] pc_plus4_mem;
+    logic [31:0] alu_result_mem;
+    logic [31:0] rs2_data_mem;
+    logic [ 4:0] rd_addr_mem;
+    logic        insn_vld_mem;
+    logic        ctrl_mem;
+    logic        mispred_mem;
+
+    // MEM Stage control signals
+    logic        reg_wr_en_mem;
+    logic [ 1:0] wb_sel_mem;
+    logic        mem_wr_en_mem;
+    logic [ 2:0] mem_op_mem;
+
+    // MEM Stage computed signals
+    logic [31:0] mem_rdata_mem;
+    logic [31:0] lsu_rdata;
+
+    // WB Stage signals
+    logic [31:0] pc_wb;
+    logic [31:0] pc_plus4_wb;
+    logic [31:0] alu_result_wb;
+    logic [31:0] mem_rdata_wb;
+    logic [ 4:0] rd_addr_wb;
+    logic        insn_vld_wb;
+    logic        ctrl_wb;
+    logic        mispred_wb;
+
+    // WB Stage control signals
+    logic        reg_wr_en_wb;
+    logic [ 1:0] wb_sel_wb;
+
+    // WB Stage computed signals
+    logic [31:0] wb_data;
+
+    // Hazard control signals
     logic        stall_if;
     logic        stall_id;
-    logic        stall_ex;
-    logic        flush_if;
     logic        flush_id;
     logic        flush_ex;
-    
-    // ============================================
-    // Two-bit Branch Predictor with BTB
-    // ============================================
-    parameter BTB_SIZE = 256;  // 256 entries
-    parameter BTB_INDEX_WIDTH = $clog2(BTB_SIZE);
-    
-    // BTB entry: {tag, predicted_pc, two_bit_state}
-    logic [31-BTB_INDEX_WIDTH-2:0] btb_tag [0:BTB_SIZE-1];
-    logic [31:0] btb_target [0:BTB_SIZE-1];
-    logic [1:0]  btb_state [0:BTB_SIZE-1];  // Two-bit predictor state
-    
-    // BTB index from PC
-    logic [BTB_INDEX_WIDTH-1:0] btb_index_if;
-    logic [BTB_INDEX_WIDTH-1:0] btb_index_ex;
-    logic [31-BTB_INDEX_WIDTH-2:0] btb_tag_if;
-    logic [31-BTB_INDEX_WIDTH-2:0] btb_tag_ex;
-    
-    // Initialize BTB
-    integer i;
-    initial begin
-        for (i = 0; i < BTB_SIZE; i = i + 1) begin
-            btb_tag[i] = '0;
-            btb_target[i] = '0;
-            btb_state[i] = 2'b01;  // Start with "weakly not-taken"
+    logic        flush_mem;
+
+    // Forwarding signals
+    logic [ 1:0] forward_a;
+    logic [ 1:0] forward_b;
+    logic [31:0] rs1_fwd_data;
+    logic [31:0] rs2_fwd_data;
+
+    // Branch/Jump control
+    logic        pc_sel;
+    logic        is_load_ex;
+
+    //==========================================================================
+    // IF Stage - Instruction Fetch
+    //==========================================================================
+
+    // PC + 4
+    assign pc_plus4_if = pc_if + 32'd4;
+
+    // PC selection: branch target or PC+4
+    assign pc_sel = br_taken;
+    assign pc_next = pc_sel ? br_target : pc_plus4_if;
+
+    // PC Register - This is the PC being fetched from memory
+    always_ff @(posedge i_clk or negedge i_reset) begin
+        if (!i_reset) begin
+            pc_if <= 32'h0000_0000;
+        end else if (!stall_if) begin
+            pc_if <= pc_next;
         end
     end
-    
-    // BTB lookup in IF stage
-    assign btb_index_if = pc[BTB_INDEX_WIDTH+1:2];
-    assign btb_tag_if = pc[31:BTB_INDEX_WIDTH+2];
-    
-    always_comb begin
-        btb_hit = 1'b0;
-        predicted_pc = pc_plus4;
-        predict_taken = 1'b0;
-        
-        // BTB lookup: check tag match and predictor state
-        // Default prediction: always not-taken (PC+4)
-        if (btb_tag[btb_index_if] == btb_tag_if) begin
-            // Tag match - entry exists in BTB
-            if (btb_state[btb_index_if] >= 2'b10) begin
-                // Predictor says "taken" (weakly or strongly taken)
-                btb_hit = 1'b1;
-                predicted_pc = btb_target[btb_index_if];
-                predict_taken = 1'b1;
-            end
-            // If state is 00 or 01 (not-taken), predict PC+4 (default)
-        end
-        // If no tag match, predict PC+4 (default - always not-taken)
-        // Note: Jumps will be learned into BTB and predicted correctly after first execution
-    end
-    
-    // BTB update in EX stage (when branch/jump resolved)
-    assign btb_index_ex = ex_pc[BTB_INDEX_WIDTH+1:2];
-    assign btb_tag_ex = ex_pc[31:BTB_INDEX_WIDTH+2];
-    
-    // BTB reset logic
-    integer k;
-    always_ff @(posedge i_clk) begin
-        if (~i_reset) begin
-            // Reset BTB on reset
-            for (k = 0; k < BTB_SIZE; k = k + 1) begin
-                btb_tag[k] <= '0;
-                btb_target[k] <= '0;
-                btb_state[k] <= 2'b01;  // Reset to "weakly not-taken"
-            end
-        end else if (ex_enable && ex_is_ctrl) begin
-            // Update BTB entry
-            btb_tag[btb_index_ex] <= btb_tag_ex;
-            if (ex_branch) begin
-                btb_target[btb_index_ex] <= ex_branch_target;
-            end else if (ex_jump) begin
-                btb_target[btb_index_ex] <= ex_jump_target;
-            end
-            
-            // Update two-bit predictor state machine
-            if (ex_branch) begin
-                case (btb_state[btb_index_ex])
-                    2'b00: begin  // Strongly not-taken
-                        if (ex_branch_taken) begin
-                            btb_state[btb_index_ex] <= 2'b01;  // Move to weakly not-taken
-                        end
-                    end
-                    2'b01: begin  // Weakly not-taken
-                        if (ex_branch_taken) begin
-                            btb_state[btb_index_ex] <= 2'b11;  // Move to weakly taken
-                        end else begin
-                            btb_state[btb_index_ex] <= 2'b00;  // Move to strongly not-taken
-                        end
-                    end
-                    2'b10: begin  // Weakly taken
-                        if (ex_branch_taken) begin
-                            btb_state[btb_index_ex] <= 2'b11;  // Move to strongly taken
-                        end else begin
-                            btb_state[btb_index_ex] <= 2'b01;  // Move to weakly not-taken
-                        end
-                    end
-                    2'b11: begin  // Strongly taken
-                        if (~ex_branch_taken) begin
-                            btb_state[btb_index_ex] <= 2'b10;  // Move to weakly taken
-                        end
-                    end
-                endcase
-            end else if (ex_jump) begin
-                // Jumps are always taken, set to strongly taken
-                btb_state[btb_index_ex] <= 2'b11;
-            end
-        end
-    end
-    
-    // ============================================
-    // IF Stage: Instruction Fetch
-    // ============================================
-    assign if_enable = ~stall_if;
-    assign if_flush = flush_if;
-    assign pc_plus4 = pc + 32'h4;
-    
-    // PC selection: use predicted PC if available, or correct PC if misprediction
-    logic [31:0] corrected_pc;
-    logic        use_corrected_pc;
-    
-    always_comb begin
-        use_corrected_pc = 1'b0;
-        corrected_pc = 32'b0;
-        
-        // Check for misprediction in EX stage
-        if (ex_is_ctrl && ex_enable) begin
-            logic actual_taken;
-            logic [31:0] actual_target;
-            
-            if (ex_branch) begin
-                actual_taken = ex_branch_taken;
-                actual_target = ex_branch_target;
-            end else begin
-                actual_taken = 1'b1;  // Jumps always taken
-                actual_target = ex_jump_target;
-            end
-            
-            if (ex_predicted_taken != actual_taken) begin
-                use_corrected_pc = 1'b1;
-                corrected_pc = actual_target;
-            end
-        end
-        
-        // PC next selection
-        if (use_corrected_pc) begin
-            pc_next = corrected_pc;
-        end else if (btb_hit && predict_taken) begin
-            pc_next = predicted_pc;
-        end else begin
-            pc_next = pc_plus4;
-        end
-    end
-    
-    always_ff @(posedge i_clk) begin
-        if (~i_reset) begin
-            pc <= 32'h0000_0000;
-        end else if (if_enable) begin
-            pc <= pc_next;
-        end
-    end
-    
-    imem_sync u_imem (
-        .clk     (i_clk),
-        .enable  (if_enable),
-        .addr    (pc),
-        .rdata   (if_instruction)
+
+    // Instruction Memory (synchronous read)
+    // Address: current PC (output available on same cycle for simulation)
+    instr_mem #(
+        .MEM_DEPTH(16384)  // 64KB / 4 = 16K words
+    ) u_imem (
+        .i_clk  (i_clk),
+        .i_addr (pc_if[15:2]),
+        .o_instr(instr_if)
     );
-    
+
+    //==========================================================================
     // IF/ID Pipeline Register
-    always_ff @(posedge i_clk) begin
-        if (~i_reset || if_flush) begin
-            id_pc <= 32'b0;
-            id_pc_plus4 <= 32'b0;
-            id_instruction <= 32'b0;
-            id_enable <= 1'b0;
-        end else if (if_enable && ~stall_id) begin
-            id_pc <= pc;
-            id_pc_plus4 <= pc_plus4;
-            id_instruction <= if_instruction;
-            id_enable <= 1'b1;
+    //==========================================================================
+
+    // Track if this is the first valid instruction after reset
+    logic if_valid;
+    always_ff @(posedge i_clk or negedge i_reset) begin
+        if (!i_reset) begin
+            if_valid <= 1'b0;
+        end else begin
+            if_valid <= 1'b1;  // Valid after first cycle
         end
     end
-    
-    // ============================================
-    // ID Stage: Instruction Decode
-    // ============================================
-    assign id_rs1_addr = id_instruction[19:15];
-    assign id_rs2_addr = id_instruction[24:20];
-    assign id_rd_addr = id_instruction[11:7];
-    
-    control_unit u_control (
-        .opcode     (id_instruction[6:0]),
-        .funct3     (id_instruction[14:12]),
-        .funct7     (id_instruction[31:25]),
-        .reg_write  (id_reg_write),
-        .mem_write  (id_mem_write),
-        .mem_read   (id_mem_read),
-        .mem_to_reg (id_mem_to_reg),
-        .alu_src_a  (id_alu_src_a),
-        .alu_src_b  (id_alu_src_b),
-        .alu_op     (id_alu_op),
-        .branch     (id_branch),
-        .jump       (id_jump),
-        .mem_size   (id_mem_size),
-        .pc_src     (id_pc_src)
-    );
-    
-    assign id_is_load = (id_instruction[6:0] == 7'b0000011);
-    
-    register_file u_regfile (
-        .clk        (i_clk),
-        .we         (wb_reg_write && wb_enable),
-        .addr_rs1   (id_rs1_addr),
-        .addr_rs2   (id_rs2_addr),
-        .addr_rd    (wb_rd_addr),
-        .wdata      (wb_reg_wdata),
-        .rdata_rs1  (id_rs1_data),
-        .rdata_rs2  (id_rs2_data)
-    );
-    
-    // Immediate generation
-    always_comb begin
-        case (id_instruction[6:0])
-            7'b0110111: id_imm = {id_instruction[31:12], 12'b0};
-            7'b0010111: id_imm = {id_instruction[31:12], 12'b0};
-            7'b1101111: id_imm = {{12{id_instruction[31]}}, id_instruction[31], id_instruction[19:12], id_instruction[20], id_instruction[30:21], 1'b0};
-            7'b1100011: id_imm = {{20{id_instruction[31]}}, id_instruction[31], id_instruction[7], id_instruction[30:25], id_instruction[11:8], 1'b0};
-            7'b0100011: id_imm = {{20{id_instruction[31]}}, id_instruction[31:25], id_instruction[11:7]};
-            7'b0010011: begin
-                if (id_instruction[14:12] == 3'b001 || id_instruction[14:12] == 3'b101) begin
-                    id_imm = {27'b0, id_instruction[24:20]};
-                end else begin
-                    id_imm = {{20{id_instruction[31]}}, id_instruction[31:20]};
-                end
-            end
-            7'b0000011: id_imm = {{20{id_instruction[31]}}, id_instruction[31:20]};
-            7'b1100111: id_imm = {{20{id_instruction[31]}}, id_instruction[31:20]};
-            default: id_imm = 32'b0;
-        endcase
+
+    // IF/ID register - captures instruction and its PC
+    always_ff @(posedge i_clk or negedge i_reset) begin
+        if (!i_reset) begin
+            pc_id       <= 32'h0;
+            pc_plus4_id <= 32'h0;
+            instr_id    <= 32'h0000_0013;  // NOP (addi x0, x0, 0)
+            insn_vld_id <= 1'b0;
+        end else if (flush_id) begin
+            pc_id       <= 32'h0;
+            pc_plus4_id <= 32'h0;
+            instr_id    <= 32'h0000_0013;  // NOP
+            insn_vld_id <= 1'b0;
+        end else if (!stall_id) begin
+            pc_id       <= pc_if;
+            pc_plus4_id <= pc_plus4_if;
+            instr_id    <= instr_if;
+            insn_vld_id <= if_valid;  // Not valid on first cycle after reset
+        end
     end
-    
+
+    //==========================================================================
+    // ID Stage - Instruction Decode
+    //==========================================================================
+
+    // Extract register addresses from instruction
+    assign rs1_addr_id = instr_id[19:15];
+    assign rs2_addr_id = instr_id[24:20];
+    assign rd_addr_id  = instr_id[11:7];
+
+    // Register File
+    reg_file u_regfile (
+        .i_clk     (i_clk),
+        .i_reset   (i_reset),
+        .i_rs1_addr(rs1_addr_id),
+        .i_rs2_addr(rs2_addr_id),
+        .i_rd_addr (rd_addr_wb),
+        .i_rd_data (wb_data),
+        .i_wr_en   (reg_wr_en_wb),
+        .o_rs1_data(rs1_data_id),
+        .o_rs2_data(rs2_data_id)
+    );
+
+    // Immediate Generator
+    imm_gen u_immgen (
+        .i_instr(instr_id),
+        .o_imm  (imm_id)
+    );
+
+    // Control Unit (Decoder)
+    control_unit u_ctrl (
+        .i_opcode   (instr_id[6:0]),
+        .i_funct3   (instr_id[14:12]),
+        .i_funct7   (instr_id[31:25]),
+        .o_reg_wr_en(reg_wr_en_id),
+        .o_wb_sel   (wb_sel_id),
+        .o_mem_wr_en(mem_wr_en_id),
+        .o_mem_op   (mem_op_id),
+        .o_alu_op   (alu_op_id),
+        .o_alu_src  (alu_src_id),
+        .o_branch   (branch_id),
+        .o_jal      (jal_id),
+        .o_jalr     (jalr_id),
+        .o_lui      (lui_id),
+        .o_auipc    (auipc_id)
+    );
+
+    //==========================================================================
     // ID/EX Pipeline Register
-    always_ff @(posedge i_clk) begin
-        if (~i_reset || flush_id) begin
-            ex_pc <= 32'b0;
-            ex_pc_plus4 <= 32'b0;
-            ex_rs1_data <= 32'b0;
-            ex_rs2_data <= 32'b0;
-            ex_imm <= 32'b0;
-            ex_rs1_addr <= 5'b0;
-            ex_rs2_addr <= 5'b0;
-            ex_rd_addr <= 5'b0;
-            ex_funct3 <= 3'b0;
-            ex_reg_write <= 1'b0;
-            ex_mem_write <= 1'b0;
-            ex_mem_read <= 1'b0;
-            ex_mem_to_reg <= 2'b0;
-            ex_alu_src_a <= 2'b0;
-            ex_alu_src_b <= 2'b0;
-            ex_alu_op <= 4'b0;
-            ex_branch <= 1'b0;
-            ex_jump <= 1'b0;
-            ex_mem_size <= 3'b0;
-            ex_pc_src <= 1'b0;
-            ex_is_load <= 1'b0;
-            ex_enable <= 1'b0;
-            ex_predicted_taken <= 1'b0;
-        end else if (~stall_ex) begin // Always update if not stalled (allow bubble propagation)
-            ex_pc <= id_pc;
-            ex_pc_plus4 <= id_pc_plus4;
-            ex_rs1_data <= id_rs1_data;
-            ex_rs2_data <= id_rs2_data;
-            ex_imm <= id_imm;
-            ex_rs1_addr <= id_rs1_addr;
-            ex_rs2_addr <= id_rs2_addr;
-            ex_rd_addr <= id_rd_addr;
-            ex_funct3 <= id_instruction[14:12];
-            ex_reg_write <= id_reg_write;
-            ex_mem_write <= id_mem_write;
-            ex_mem_read <= id_mem_read;
-            ex_mem_to_reg <= id_mem_to_reg;
-            ex_alu_src_a <= id_alu_src_a;
-            ex_alu_src_b <= id_alu_src_b;
-            ex_alu_op <= id_alu_op;
-            ex_branch <= id_branch;
-            ex_jump <= id_jump;
-            ex_mem_size <= id_mem_size;
-            ex_pc_src <= id_pc_src;
-            ex_is_load <= id_is_load;
-            ex_enable <= id_enable;
-            // Capture prediction from IF stage
-            ex_predicted_taken <= (id_branch || id_jump) ? predict_taken : 1'b0;
+    //==========================================================================
+
+    always_ff @(posedge i_clk or negedge i_reset) begin
+        if (!i_reset) begin
+            pc_ex        <= 32'h0;
+            pc_plus4_ex  <= 32'h0;
+            rs1_data_ex  <= 32'h0;
+            rs2_data_ex  <= 32'h0;
+            imm_ex       <= 32'h0;
+            rs1_addr_ex  <= 5'h0;
+            rs2_addr_ex  <= 5'h0;
+            rd_addr_ex   <= 5'h0;
+            insn_vld_ex  <= 1'b0;
+            ctrl_ex      <= 1'b0;
+            // Control signals
+            reg_wr_en_ex <= 1'b0;
+            wb_sel_ex    <= 2'b0;
+            mem_wr_en_ex <= 1'b0;
+            mem_op_ex    <= 3'b0;
+            alu_op_ex    <= 4'b0;
+            alu_src_ex   <= 1'b0;
+            branch_ex    <= 1'b0;
+            jal_ex       <= 1'b0;
+            jalr_ex      <= 1'b0;
+            lui_ex       <= 1'b0;
+            auipc_ex     <= 1'b0;
+        end else if (flush_ex) begin
+            pc_ex        <= 32'h0;
+            pc_plus4_ex  <= 32'h0;
+            rs1_data_ex  <= 32'h0;
+            rs2_data_ex  <= 32'h0;
+            imm_ex       <= 32'h0;
+            rs1_addr_ex  <= 5'h0;
+            rs2_addr_ex  <= 5'h0;
+            rd_addr_ex   <= 5'h0;
+            insn_vld_ex  <= 1'b0;
+            ctrl_ex      <= 1'b0;
+            // Control signals
+            reg_wr_en_ex <= 1'b0;
+            wb_sel_ex    <= 2'b0;
+            mem_wr_en_ex <= 1'b0;
+            mem_op_ex    <= 3'b0;
+            alu_op_ex    <= 4'b0;
+            alu_src_ex   <= 1'b0;
+            branch_ex    <= 1'b0;
+            jal_ex       <= 1'b0;
+            jalr_ex      <= 1'b0;
+            lui_ex       <= 1'b0;
+            auipc_ex     <= 1'b0;
+        end else begin
+            pc_ex        <= pc_id;
+            pc_plus4_ex  <= pc_plus4_id;
+            rs1_data_ex  <= rs1_data_id;
+            rs2_data_ex  <= rs2_data_id;
+            imm_ex       <= imm_id;
+            rs1_addr_ex  <= rs1_addr_id;
+            rs2_addr_ex  <= rs2_addr_id;
+            rd_addr_ex   <= rd_addr_id;
+            insn_vld_ex  <= insn_vld_id;
+            ctrl_ex      <= branch_id | jal_id | jalr_id;
+            // Control signals
+            reg_wr_en_ex <= reg_wr_en_id;
+            wb_sel_ex    <= wb_sel_id;
+            mem_wr_en_ex <= mem_wr_en_id;
+            mem_op_ex    <= mem_op_id;
+            alu_op_ex    <= alu_op_id;
+            alu_src_ex   <= alu_src_id;
+            branch_ex    <= branch_id;
+            jal_ex       <= jal_id;
+            jalr_ex      <= jalr_id;
+            lui_ex       <= lui_id;
+            auipc_ex     <= auipc_id;
         end
     end
-    
-    // ============================================
-    // EX Stage: Execute
-    // ============================================
-    // Forwarding MUX for ALU inputs
-    always_comb begin
-        case (forward_a)
-            2'b00: forward_rs1_data = ex_rs1_data;
-            2'b01: forward_rs1_data = wb_reg_wdata;
-            2'b10: forward_rs1_data = mem_alu_result;
-            default: forward_rs1_data = ex_rs1_data;
-        endcase
-        
-        case (forward_b)
-            2'b00: forward_rs2_data = ex_rs2_data;
-            2'b01: forward_rs2_data = wb_reg_wdata;
-            2'b10: forward_rs2_data = mem_alu_result;
-            default: forward_rs2_data = ex_rs2_data;
-        endcase
-    end
-    
-    // ALU input selection
-    always_comb begin
-        case (ex_alu_src_a)
-            2'b00: ex_alu_a = forward_rs1_data;
-            2'b01: ex_alu_a = ex_pc;
-            2'b10: ex_alu_a = ex_pc;
-            2'b11: ex_alu_a = {ex_imm[31:12], 12'b0};
-            default: ex_alu_a = forward_rs1_data;
-        endcase
-        
-        case (ex_alu_src_b)
-            2'b00: ex_alu_b = forward_rs2_data;
-            2'b01: ex_alu_b = ex_imm;
-            2'b10: ex_alu_b = 32'h4;
-            2'b11: ex_alu_b = 32'b0;
-            default: ex_alu_b = forward_rs2_data;
-        endcase
-    end
-    
+
+    //==========================================================================
+    // EX Stage - Execute
+    //==========================================================================
+
+    // Forwarding logic (only active when FORWARDING_EN = 1)
+    generate
+        if (FORWARDING_EN) begin : gen_forwarding
+            // Forwarding Unit
+            forwarding_unit u_fwd (
+                .i_rs1_addr_ex  (rs1_addr_ex),
+                .i_rs2_addr_ex  (rs2_addr_ex),
+                .i_rd_addr_mem  (rd_addr_mem),
+                .i_rd_addr_wb   (rd_addr_wb),
+                .i_reg_wr_en_mem(reg_wr_en_mem),
+                .i_reg_wr_en_wb (reg_wr_en_wb),
+                .o_forward_a    (forward_a),
+                .o_forward_b    (forward_b)
+            );
+
+            // Forwarding MUX for rs1
+            always_comb begin
+                case (forward_a)
+                    2'b00: rs1_fwd_data = rs1_data_ex;
+                    2'b01: rs1_fwd_data = wb_data;
+                    2'b10: rs1_fwd_data = alu_result_mem;
+                    default: rs1_fwd_data = rs1_data_ex;
+                endcase
+            end
+
+            // Forwarding MUX for rs2
+            always_comb begin
+                case (forward_b)
+                    2'b00: rs2_fwd_data = rs2_data_ex;
+                    2'b01: rs2_fwd_data = wb_data;
+                    2'b10: rs2_fwd_data = alu_result_mem;
+                    default: rs2_fwd_data = rs2_data_ex;
+                endcase
+            end
+        end else begin : gen_no_forwarding
+            assign forward_a = 2'b00;
+            assign forward_b = 2'b00;
+            assign rs1_fwd_data = rs1_data_ex;
+            assign rs2_fwd_data = rs2_data_ex;
+        end
+    endgenerate
+
+    // ALU operand selection
+    assign alu_op1 = lui_ex ? 32'h0 : (auipc_ex ? pc_ex : rs1_fwd_data);
+    assign alu_op2 = alu_src_ex ? imm_ex : rs2_fwd_data;
+
+    // ALU
     alu u_alu (
-        .op_a       (ex_alu_a),
-        .op_b       (ex_alu_b),
-        .alu_op     (ex_alu_op),
-        .alu_out    (ex_alu_result),
-        .alu_zero   (ex_alu_zero)
+        .i_op1   (alu_op1),
+        .i_op2   (alu_op2),
+        .i_alu_op(alu_op_ex),
+        .o_result(alu_result_ex)
     );
-    
-    // Branch comparison
-    always_comb begin
-        if (ex_branch) begin
-            case (ex_funct3)
-                3'b000: ex_branch_taken = (forward_rs1_data == forward_rs2_data);
-                3'b001: ex_branch_taken = (forward_rs1_data != forward_rs2_data);
-                3'b100: ex_branch_taken = ($signed(forward_rs1_data) < $signed(forward_rs2_data));
-                3'b101: ex_branch_taken = ($signed(forward_rs1_data) >= $signed(forward_rs2_data));
-                3'b110: ex_branch_taken = (forward_rs1_data < forward_rs2_data);
-                3'b111: ex_branch_taken = (forward_rs1_data >= forward_rs2_data);
-                default: ex_branch_taken = 1'b0;
-            endcase
-        end else begin
-            ex_branch_taken = 1'b0;
-        end
-    end
-    
-    assign ex_branch_target = ex_pc + ex_imm;
-    assign ex_jump_target = ex_jump ? (ex_pc + ex_imm) : (forward_rs1_data + ex_imm);
-    assign ex_is_ctrl = ex_branch || ex_jump;
-    
-    // Correct PC next (for misprediction detection)
-    logic [31:0] correct_pc_next;
-    always_comb begin
-        if (ex_jump) begin
-            correct_pc_next = ex_jump_target;
-        end else if (ex_branch && ex_branch_taken) begin
-            correct_pc_next = ex_branch_target;
-        end else begin
-            correct_pc_next = ex_pc_plus4;
-        end
-    end
-    
+
+    // Branch Comparator
+    branch_comp u_brc (
+        .i_rs1    (rs1_fwd_data),
+        .i_rs2    (rs2_fwd_data),
+        .i_funct3 (mem_op_ex),  // Using mem_op to carry funct3 for branches
+        .i_branch (branch_ex),
+        .i_jal    (jal_ex),
+        .i_jalr   (jalr_ex),
+        .o_br_taken(br_taken)
+    );
+
+    // Branch target calculation
+    assign br_target = jalr_ex ? (rs1_fwd_data + imm_ex) & ~32'h1 : (pc_ex + imm_ex);
+
+    // Load instruction detection for hazard
+    assign is_load_ex = (wb_sel_ex == 2'b01);  // Load instructions
+
+    //==========================================================================
     // EX/MEM Pipeline Register
-    always_ff @(posedge i_clk) begin
-        if (~i_reset || flush_ex) begin
-            mem_pc <= 32'b0;
-            mem_pc_plus4 <= 32'b0;
-            mem_alu_result <= 32'b0;
-            mem_rs2_data <= 32'b0;
-            mem_rd_addr <= 5'b0;
-            mem_reg_write <= 1'b0;
-            mem_mem_write <= 1'b0;
-            mem_mem_read <= 1'b0;
-            mem_mem_to_reg <= 2'b0;
-            mem_mem_size <= 3'b0;
-            mem_is_ctrl <= 1'b0;
-            mem_branch_taken <= 1'b0;
-            mem_predicted_taken <= 1'b0;
-            mem_is_branch <= 1'b0;
-            mem_enable <= 1'b0;
-        end else if (ex_enable) begin
-            mem_pc <= ex_pc;
-            mem_pc_plus4 <= ex_pc_plus4;
-            mem_alu_result <= ex_alu_result;
-            mem_rs2_data <= forward_rs2_data;
-            mem_rd_addr <= ex_rd_addr;
-            mem_reg_write <= ex_reg_write;
-            mem_mem_write <= ex_mem_write;
-            mem_mem_read <= ex_mem_read;
-            mem_mem_to_reg <= ex_mem_to_reg;
-            mem_mem_size <= ex_mem_size;
-            mem_is_ctrl <= ex_is_ctrl;
-            mem_branch_taken <= ex_branch_taken;
-            mem_predicted_taken <= ex_predicted_taken;
-            mem_is_branch <= ex_branch;
-            mem_enable <= ex_enable;
-        end
-    end
-    
-    // ============================================
-    // MEM Stage: Memory Access
-    // ============================================
-    assign mem_addr = mem_alu_result;
-    assign mem_wdata = mem_rs2_data;
-    
-    dmem_sync u_dmem (
-        .clk        (i_clk),
-        .enable     (mem_enable),
-        .we         (mem_mem_write && (mem_addr < 32'h0001_0000)),
-        .addr       (mem_addr),
-        .wdata      (mem_wdata),
-        .mem_size   (mem_mem_size),
-        .rdata      (mem_rdata)
-    );
-    
-    // I/O memory mapping
-    always_comb begin
-        if (mem_mem_read) begin
-            if (mem_addr >= 32'h1000_4000 && mem_addr < 32'h1000_5000) begin
-                mem_io_data = o_io_lcd;
-            end else if (mem_addr >= 32'h1000_3000 && mem_addr < 32'h1000_4000) begin
-                mem_io_data = {1'b0, o_io_hex7, 1'b0, o_io_hex6, 1'b0, o_io_hex5, 1'b0, o_io_hex4};
-            end else if (mem_addr >= 32'h1000_2000 && mem_addr < 32'h1000_3000) begin
-                mem_io_data = {1'b0, o_io_hex3, 1'b0, o_io_hex2, 1'b0, o_io_hex1, 1'b0, o_io_hex0};
-            end else if (mem_addr >= 32'h1000_1000 && mem_addr < 32'h1000_2000) begin
-                mem_io_data = o_io_ledg;
-            end else if (mem_addr >= 32'h1000_0000 && mem_addr < 32'h1000_1000) begin
-                mem_io_data = o_io_ledr;
-            end else if (mem_addr >= 32'h1001_0000 && mem_addr < 32'h1001_1000) begin
-                mem_io_data = i_io_sw;
-            end else begin
-                mem_io_data = mem_rdata;
-            end
+    //==========================================================================
+
+    always_ff @(posedge i_clk or negedge i_reset) begin
+        if (!i_reset) begin
+            pc_mem         <= 32'h0;
+            pc_plus4_mem   <= 32'h0;
+            alu_result_mem <= 32'h0;
+            rs2_data_mem   <= 32'h0;
+            rd_addr_mem    <= 5'h0;
+            insn_vld_mem   <= 1'b0;
+            ctrl_mem       <= 1'b0;
+            mispred_mem    <= 1'b0;
+            // Control signals
+            reg_wr_en_mem  <= 1'b0;
+            wb_sel_mem     <= 2'b0;
+            mem_wr_en_mem  <= 1'b0;
+            mem_op_mem     <= 3'b0;
+        end else if (flush_mem) begin
+            pc_mem         <= 32'h0;
+            pc_plus4_mem   <= 32'h0;
+            alu_result_mem <= 32'h0;
+            rs2_data_mem   <= 32'h0;
+            rd_addr_mem    <= 5'h0;
+            insn_vld_mem   <= 1'b0;
+            ctrl_mem       <= 1'b0;
+            mispred_mem    <= 1'b0;
+            // Control signals
+            reg_wr_en_mem  <= 1'b0;
+            wb_sel_mem     <= 2'b0;
+            mem_wr_en_mem  <= 1'b0;
+            mem_op_mem     <= 3'b0;
         end else begin
-            mem_io_data = mem_rdata;
+            pc_mem         <= pc_ex;
+            pc_plus4_mem   <= pc_plus4_ex;
+            alu_result_mem <= alu_result_ex;
+            rs2_data_mem   <= rs2_fwd_data;
+            rd_addr_mem    <= rd_addr_ex;
+            insn_vld_mem   <= insn_vld_ex;
+            ctrl_mem       <= ctrl_ex;
+            mispred_mem    <= br_taken;  // Misprediction when branch is taken (always-not-taken predictor)
+            // Control signals
+            reg_wr_en_mem  <= reg_wr_en_ex;
+            wb_sel_mem     <= wb_sel_ex;
+            mem_wr_en_mem  <= mem_wr_en_ex;
+            mem_op_mem     <= mem_op_ex;
         end
     end
-    
+
+    //==========================================================================
+    // MEM Stage - Memory Access
+    //==========================================================================
+
+    // Load-Store Unit (includes data memory and peripheral mapping)
+    lsu u_lsu (
+        .i_clk      (i_clk),
+        .i_reset    (i_reset),
+        .i_addr     (alu_result_mem),
+        .i_wdata    (rs2_data_mem),
+        .i_wr_en    (mem_wr_en_mem),
+        .i_mem_op   (mem_op_mem),
+        .o_rdata    (lsu_rdata),
+        // Peripheral interfaces
+        .i_io_sw    (i_io_sw),
+        .o_io_ledr  (o_io_ledr),
+        .o_io_ledg  (o_io_ledg),
+        .o_io_hex0  (o_io_hex0),
+        .o_io_hex1  (o_io_hex1),
+        .o_io_hex2  (o_io_hex2),
+        .o_io_hex3  (o_io_hex3),
+        .o_io_hex4  (o_io_hex4),
+        .o_io_hex5  (o_io_hex5),
+        .o_io_hex6  (o_io_hex6),
+        .o_io_hex7  (o_io_hex7),
+        .o_io_lcd   (o_io_lcd)
+    );
+
+    assign mem_rdata_mem = lsu_rdata;
+
+    //==========================================================================
     // MEM/WB Pipeline Register
-    always_ff @(posedge i_clk) begin
-        if (~i_reset) begin
-            wb_pc <= 32'b0;
-            wb_pc_plus4 <= 32'b0;
-            wb_alu_result <= 32'b0;
-            wb_mem_rdata <= 32'b0;
-            wb_io_data <= 32'b0;
-            wb_rd_addr <= 5'b0;
-            wb_reg_write <= 1'b0;
-            wb_mem_to_reg <= 2'b0;
-            wb_is_ctrl <= 1'b0;
-            wb_enable <= 1'b0;
-            wb_mispred <= 1'b0;
-        end else begin // Always update (allow bubble propagation)
-            wb_pc <= mem_pc;
-            wb_pc_plus4 <= mem_pc_plus4;
-            wb_alu_result <= mem_alu_result;
-            wb_mem_rdata <= mem_rdata;
-            wb_io_data <= mem_io_data;
-            wb_rd_addr <= mem_rd_addr;
-            wb_reg_write <= mem_reg_write;
-            wb_mem_to_reg <= mem_mem_to_reg;
-            wb_is_ctrl <= mem_is_ctrl;
-            wb_enable <= mem_enable;
-            // Misprediction logic
-            if (mem_is_branch) begin
-                wb_mispred <= (mem_predicted_taken != mem_branch_taken);
-            end else if (mem_is_ctrl) begin
-                wb_mispred <= ~mem_predicted_taken;
-            end else begin
-                wb_mispred <= 1'b0;
-            end
+    //==========================================================================
+
+    always_ff @(posedge i_clk or negedge i_reset) begin
+        if (!i_reset) begin
+            pc_wb         <= 32'h0;
+            pc_plus4_wb   <= 32'h0;
+            alu_result_wb <= 32'h0;
+            mem_rdata_wb  <= 32'h0;
+            rd_addr_wb    <= 5'h0;
+            insn_vld_wb   <= 1'b0;
+            ctrl_wb       <= 1'b0;
+            mispred_wb    <= 1'b0;
+            // Control signals
+            reg_wr_en_wb  <= 1'b0;
+            wb_sel_wb     <= 2'b0;
+        end else begin
+            pc_wb         <= pc_mem;
+            pc_plus4_wb   <= pc_plus4_mem;
+            alu_result_wb <= alu_result_mem;
+            mem_rdata_wb  <= mem_rdata_mem;
+            rd_addr_wb    <= rd_addr_mem;
+            insn_vld_wb   <= insn_vld_mem;
+            ctrl_wb       <= ctrl_mem;
+            mispred_wb    <= mispred_mem;
+            // Control signals
+            reg_wr_en_wb  <= reg_wr_en_mem;
+            wb_sel_wb     <= wb_sel_mem;
         end
     end
-    
-    // ============================================
-    // WB Stage: Write Back
-    // ============================================
+
+    //==========================================================================
+    // WB Stage - Write Back
+    //==========================================================================
+
+    // Write-back data selection
     always_comb begin
-        case (wb_mem_to_reg)
-            2'b00: wb_reg_wdata = wb_alu_result;
-            2'b01: wb_reg_wdata = wb_io_data;
-            2'b10: wb_reg_wdata = wb_pc_plus4;
-            default: wb_reg_wdata = wb_alu_result;
+        case (wb_sel_wb)
+            2'b00: wb_data = alu_result_wb;  // ALU result
+            2'b01: wb_data = mem_rdata_wb;   // Memory data
+            2'b10: wb_data = pc_plus4_wb;    // PC + 4 (for JAL/JALR)
+            default: wb_data = alu_result_wb;
         endcase
     end
-    
-    // ============================================
-    // Forwarding Unit (DISABLED for Model 1)
-    // ============================================
-    // Model 1: No forwarding - always use register file data
-    // Data hazards will cause stalls instead
-    always_comb begin
-        forward_a = 2'b00;  // Always use register file (no forwarding)
-        forward_b = 2'b00;  // Always use register file (no forwarding)
-    end
-    
-    // ============================================
-    // Hazard Detection Unit (Model 1: No Forwarding)
-    // ============================================
-    // Simplified logic: Only stall for load-use hazards
-    // For other data hazards, the pipeline will naturally wait (no forwarding)
-    // This matches the baseline behavior where forwarding handles most cases
-    always_comb begin
-        stall_if = 1'b0;
-        stall_id = 1'b0;
-        stall_ex = 1'b0;
-        flush_if = 1'b0;
-        flush_id = 1'b0;
-        flush_ex = 1'b0;
-        
-        // Load-use hazard: stall if load in EX and dependent instruction in ID
-        // This is the only case that absolutely requires a stall (load takes 2 cycles)
-        if (ex_is_load && ex_enable && ex_rd_addr != 5'b0) begin
-            // Check if ID stage instruction uses the load result
-            if ((id_rs1_addr == ex_rd_addr && id_rs1_addr != 5'b0 && id_reg_write) ||
-                (id_rs2_addr == ex_rd_addr && id_rs2_addr != 5'b0 && (id_mem_write || id_branch))) begin
-                stall_if = 1'b1;
-                stall_id = 1'b1;
-                flush_id = 1'b1;  // Insert bubble in EX stage (flush ID/EX)
-            end
-        end
-        
-        // Control hazard: flush if mispredicted branch/jump
-        // Misprediction detected in EX stage
-        if (ex_is_ctrl && ex_enable) begin
-            logic actual_taken;
-            logic [31:0] actual_target;
-            
-            if (ex_branch) begin
-                actual_taken = ex_branch_taken;
-                actual_target = ex_branch_target;
-            end else begin
-                actual_taken = 1'b1;  // Jumps always taken
-                actual_target = ex_jump_target;
-            end
-            
-            // Misprediction: predicted != actual
-            if (ex_predicted_taken != actual_taken) begin
-                flush_if = 1'b1;
-                flush_id = 1'b1;
-                // DO NOT flush EX - the branch/jump itself must proceed to WB
-                // Correct PC will be set in next cycle
-            end
-        end
-    end
-    
-    
-    // ============================================
-    // Outputs
-    // ============================================
-    // Use WB-stage PC for debug, matching o_insn_vld = wb_enable
-    assign o_pc_debug = wb_pc;
-    assign o_insn_vld = wb_enable;
-    assign o_ctrl = wb_is_ctrl && wb_enable;
-    assign o_mispred = wb_mispred && wb_enable;
-    
-    // I/O outputs
-    always_ff @(posedge i_clk) begin
-        if (~i_reset) begin
-            o_io_ledr <= 32'b0;
-            o_io_ledg <= 32'b0;
-            o_io_lcd  <= 32'b0;
-            o_io_hex0 <= 7'b0;
-            o_io_hex1 <= 7'b0;
-            o_io_hex2 <= 7'b0;
-            o_io_hex3 <= 7'b0;
-            o_io_hex4 <= 7'b0;
-            o_io_hex5 <= 7'b0;
-            o_io_hex6 <= 7'b0;
-            o_io_hex7 <= 7'b0;
-        end else if (mem_mem_write && mem_enable) begin
-            if (mem_addr >= 32'h1000_0000 && mem_addr < 32'h1000_1000) begin
-                o_io_ledr <= mem_wdata;
-            end else if (mem_addr >= 32'h1000_1000 && mem_addr < 32'h1000_2000) begin
-                o_io_ledg <= mem_wdata;
-            end else if (mem_addr >= 32'h1000_2000 && mem_addr < 32'h1000_3000) begin
-                case (mem_mem_size)
-                    3'b000: begin
-                        case (mem_addr[1:0])
-                            2'b00: o_io_hex0 <= mem_wdata[6:0];
-                            2'b01: o_io_hex1 <= mem_wdata[6:0];
-                            2'b10: o_io_hex2 <= mem_wdata[6:0];
-                            2'b11: o_io_hex3 <= mem_wdata[6:0];
-                        endcase
-                    end
-                    3'b001: begin
-                        if (mem_addr[1] == 1'b0) begin
-                            o_io_hex0 <= mem_wdata[6:0];
-                            o_io_hex1 <= mem_wdata[14:8];
-                        end else begin
-                            o_io_hex2 <= mem_wdata[6:0];
-                            o_io_hex3 <= mem_wdata[14:8];
-                        end
-                    end
-                    3'b010: begin
-                        o_io_hex0 <= mem_wdata[6:0];
-                        o_io_hex1 <= mem_wdata[14:8];
-                        o_io_hex2 <= mem_wdata[22:16];
-                        o_io_hex3 <= mem_wdata[30:24];
-                    end
-                    default: begin
-                        o_io_hex0 <= mem_wdata[6:0];
-                        o_io_hex1 <= mem_wdata[14:8];
-                        o_io_hex2 <= mem_wdata[22:16];
-                        o_io_hex3 <= mem_wdata[30:24];
-                    end
-                endcase
-            end else if (mem_addr >= 32'h1000_3000 && mem_addr < 32'h1000_4000) begin
-                case (mem_mem_size)
-                    3'b000: begin
-                        case (mem_addr[1:0])
-                            2'b00: o_io_hex4 <= mem_wdata[6:0];
-                            2'b01: o_io_hex5 <= mem_wdata[6:0];
-                            2'b10: o_io_hex6 <= mem_wdata[6:0];
-                            2'b11: o_io_hex7 <= mem_wdata[6:0];
-                        endcase
-                    end
-                    3'b001: begin
-                        if (mem_addr[1] == 1'b0) begin
-                            o_io_hex4 <= mem_wdata[6:0];
-                            o_io_hex5 <= mem_wdata[14:8];
-                        end else begin
-                            o_io_hex6 <= mem_wdata[6:0];
-                            o_io_hex7 <= mem_wdata[14:8];
-                        end
-                    end
-                    3'b010: begin
-                        o_io_hex4 <= mem_wdata[6:0];
-                        o_io_hex5 <= mem_wdata[14:8];
-                        o_io_hex6 <= mem_wdata[22:16];
-                        o_io_hex7 <= mem_wdata[30:24];
-                    end
-                    default: begin
-                        o_io_hex4 <= mem_wdata[6:0];
-                        o_io_hex5 <= mem_wdata[14:8];
-                        o_io_hex6 <= mem_wdata[22:16];
-                        o_io_hex7 <= mem_wdata[30:24];
-                    end
-                endcase
-            end else if (mem_addr >= 32'h1000_4000 && mem_addr < 32'h1000_5000) begin
-                o_io_lcd <= mem_wdata;
-            end
-        end
-    end
+
+    //==========================================================================
+    // Hazard Detection Unit
+    //==========================================================================
+
+    hazard_unit #(
+        .FORWARDING_EN(FORWARDING_EN)
+    ) u_hazard (
+        .i_rs1_addr_id  (rs1_addr_id),
+        .i_rs2_addr_id  (rs2_addr_id),
+        .i_rd_addr_ex   (rd_addr_ex),
+        .i_rd_addr_mem  (rd_addr_mem),
+        .i_rd_addr_wb   (rd_addr_wb),
+        .i_reg_wr_en_ex (reg_wr_en_ex),
+        .i_reg_wr_en_mem(reg_wr_en_mem),
+        .i_reg_wr_en_wb (reg_wr_en_wb),
+        .i_is_load_ex   (is_load_ex),
+        .i_br_taken     (br_taken),
+        .o_stall_if     (stall_if),
+        .o_stall_id     (stall_id),
+        .o_flush_id     (flush_id),
+        .o_flush_ex     (flush_ex),
+        .o_flush_mem    (flush_mem)
+    );
+
+    //==========================================================================
+    // Debug Outputs
+    //==========================================================================
+
+    assign o_pc_debug = pc_wb;
+    assign o_insn_vld = insn_vld_wb;
+    assign o_ctrl     = ctrl_wb;
+    assign o_mispred  = mispred_wb & ctrl_wb;
 
 endmodule : pipelined
-
