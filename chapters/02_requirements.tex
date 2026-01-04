@@ -36,7 +36,7 @@ The processor module (\texttt{single\_cycle.sv}) must provide the following inte
     \item \textbf{Size}: 16KB (16384 bytes) to support testbench requirements
     \item \textbf{Type}: Read-only memory (ROM) implemented as logic elements
     \item \textbf{Address Width}: At least 14 bits (supporting addresses up to 0x0000\_7FFF)
-    \item \textbf{Initialization}: Loaded from \texttt{isa.mem} file using \texttt{\$readmemh} (with fallback to \texttt{isa\_1b.hex} if \texttt{isa.mem} is not found)
+    \item \textbf{Initialization}: Loaded from \texttt{isa.mem} file using \texttt{\$readmemh}\\ (fallback to \texttt{isa\_4b.hex} if \texttt{isa.mem} is not found)
     \item \textbf{Access}: Asynchronous read (combinational)
 \end{itemize}
 
@@ -132,7 +132,7 @@ The control unit generates the following signals for each instruction:
 \begin{itemize}
     \item \textbf{reg\_write}: Enable register file write (for instructions that write to registers)
     \item \textbf{mem\_write}/\textbf{mem\_read}: Enable data memory write/read
-    \item \textbf{mem\_to\_reg}: Select data source for register write (00=ALU, 01=Memory, 10=PC+4)
+    \item \textbf{mem\_to\_reg}: Select data source for register write\\ (00=ALU, 01=Memory, 10=PC+4)
     \item \textbf{alu\_src\_a}/\textbf{alu\_src\_b}: Select ALU operand sources
     \item \textbf{alu\_op}: ALU operation code (4-bit)
     \item \textbf{branch}: Enable branch instruction execution

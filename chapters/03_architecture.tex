@@ -431,7 +431,7 @@ The Non-Forwarding architecture requires pipeline stalls (bubbles) when data haz
         % Labels
         \node[above=0.2cm of hazard, font=\tiny, text width=4.5cm, align=center] {Detects load-use hazards\\and control hazards\\Generates stall/flush signals};
         \node[above=0.1cm of idex, font=\tiny, text width=3cm, align=center] {rs1\_data, rs2\_data\\from Register File};
-        \node[below=2.5cm of wb_mux, font=\footnotesize, text width=9cm, align=center, fill=yellow!20, rounded corners, padding=2pt] {\textbf{Key:} No forwarding paths. ALU uses data directly from ID/EX register. Data hazards require pipeline stalls until data is available in register file.};
+        \node[below=2.5cm of wb_mux, font=\footnotesize, text width=9cm, align=center, fill=yellow!20, rounded corners, inner sep=2pt] {\textbf{Key:} No forwarding paths. ALU uses data directly from ID/EX register. Data hazards require pipeline stalls until data is available in register file.};
         
     \end{tikzpicture}
     \caption{Non-Forwarding Pipeline Architecture: Complete block diagram showing 5-stage pipeline without forwarding. Data hazards are resolved by stalling the pipeline until data is available in the register file.}
@@ -611,7 +611,7 @@ The Forwarding architecture includes a Forwarding Unit that forwards data from M
         \node[above=0.3cm of forward_unit, font=\tiny, text width=3.5cm, align=center] {Compare: ex\_rs1\_addr, ex\_rs2\_addr\\vs mem\_rd\_addr, wb\_rd\_addr\\Priority: MEM > WB};
         \node[above=0.2cm of hazard, font=\tiny, text width=4cm, align=center] {Detects load-use\\hazards and\\control hazards};
         \node[above=0.1cm of btb, font=\tiny, text width=2.5cm, align=center] {Lookup: IF\\Update: EX};
-        \node[below=2.5cm of wb_mux, font=\footnotesize, text width=9cm, align=center, fill=blue!20, rounded corners, padding=2pt] {\textbf{Key:} Forwarding paths (blue dashed) eliminate most data hazards. MUX selection: 00=ID/EX, 10=MEM (priority), 01=WB. BTB (purple) provides branch prediction. Only load-use hazards require stalls.};
+        \node[below=2.5cm of wb_mux, font=\footnotesize, text width=9cm, align=center, fill=blue!20, rounded corners, inner sep=2pt] {\textbf{Key:} Forwarding paths (blue dashed) eliminate most data hazards. MUX selection: 00=ID/EX, 10=MEM (priority), 01=WB. BTB (purple) provides branch prediction. Only load-use hazards require stalls.};
         
     \end{tikzpicture}
     \caption{Forwarding Pipeline Architecture with BTB and Branch Predictor: Complete block diagram showing 5-stage pipeline with Forwarding Unit, BTB (256 entries), and two-bit dynamic branch predictor. Data from MEM and WB stages are forwarded to EX stage via MUXes, eliminating most data hazards without stalling. BTB provides predicted PC in IF stage and is updated in EX stage when branch/jump is resolved.}
