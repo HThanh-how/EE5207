@@ -369,3 +369,5 @@ if (wb_rd_addr == ex_rs1_addr) forward_a = 2'b01;  // Forward từ WB
 
 **Tất cả các phần khác đều giống nhau!** 🎯
 
+
+

@@ -80,3 +80,5 @@ end
 
 Driver là module đơn giản, cung cấp giá trị cố định cho switches. Module này có thể được mở rộng để phức tạp hơn nếu cần.
 
+
+

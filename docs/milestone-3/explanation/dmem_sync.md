@@ -348,3 +348,5 @@ DMEM là module quan trọng, lưu trữ dữ liệu và cho phép đọc/ghi v�
 - Synchronous read/write (BRAM compatible)
 - 64 KiB memory size
 
+
+

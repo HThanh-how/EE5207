@@ -1054,3 +1054,5 @@ File `pipelined.sv` là module chính, kết nối tất cả các module lại 
 
 **Model 1** (Non-Forwarding) đơn giản hơn Model 2, nhưng performance thấp hơn do nhiều stalls.
 
+
+

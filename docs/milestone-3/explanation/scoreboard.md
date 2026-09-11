@@ -322,3 +322,5 @@ Scoreboard là module quan trọng trong testbench, theo dõi và thống kê pe
 - In kết quả test từ chương trình
 - In thống kê và kết thúc simulation
 
+
+

@@ -261,3 +261,5 @@ assign alu_zero = (alu_out == 32'b0);
 
 ALU là module đơn giản nhưng quan trọng, thực hiện tất cả các phép toán số học và logic của processor. Module này nhận 2 số và mã lệnh, trả về kết quả và cờ zero.
 
+
+

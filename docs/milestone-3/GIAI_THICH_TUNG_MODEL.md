@@ -503,3 +503,5 @@ Tổng: 9 cycles
 
 Cả hai đều đúng, nhưng Model 2 nhanh hơn nhờ "thông minh" hơn! 🚀
 
+
+

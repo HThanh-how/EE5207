@@ -295,3 +295,5 @@ IMEM là module quan trọng, lưu trữ các lệnh của chương trình và c
 - Little-endian byte order
 - 64 KiB memory size
 
+
+

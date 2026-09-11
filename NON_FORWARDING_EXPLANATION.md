@@ -423,3 +423,5 @@ end
 Non-Forwarding architecture là foundation tốt để hiểu pipeline hazards và stall mechanism. Mặc dù performance thấp hơn Forwarding, nhưng nó đơn giản hơn và là bước đầu quan trọng trong việc thiết kế pipelined processor. So sánh giữa Non-Forwarding và Forwarding giúp đánh giá tác động của forwarding mechanism lên pipeline performance.
 
 
+
+

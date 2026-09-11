@@ -398,3 +398,5 @@ end
 
 Control Unit là module quan trọng, đọc lệnh và tạo các tín hiệu điều khiển để các module khác biết phải làm gì. Module này giống như "bộ não" của processor, quyết định mọi hoạt động.
 
+
+

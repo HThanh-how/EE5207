@@ -239,3 +239,5 @@ Testbench là module top-level, kết nối tất cả các module lại với n
 - Tạo waveform dump
 - Quản lý simulation
 
+
+

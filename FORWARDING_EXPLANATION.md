@@ -192,3 +192,5 @@ end
 - Giải quyết hầu hết data hazards
 
 
+
+

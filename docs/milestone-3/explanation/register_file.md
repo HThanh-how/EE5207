@@ -232,3 +232,5 @@ Register File là module đơn giản nhưng quan trọng, lưu trữ 32 thanh g
 - Đọc nhanh (combinational)
 - Ghi an toàn (sequential, cần clock)
 
+
+

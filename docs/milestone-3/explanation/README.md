@@ -146,3 +146,5 @@ explanation/
 - [Tài liệu tổng quan](../GIAI_THICH_TUNG_MODEL.md) - So sánh Model 1 và Model 2
 - [Tài liệu chi tiết](../GIAI_THICH_CODE_CHI_TIET.md) - Giải thích tổng quan
 
+
+

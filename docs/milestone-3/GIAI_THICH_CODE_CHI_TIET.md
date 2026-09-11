@@ -731,3 +731,5 @@ Cycle 4:
 
 Pipeline processor giống như một dây chuyền sản xuất, cho phép nhiều lệnh được xử lý đồng thời. PL2 nhanh hơn PL1 nhờ forwarding mechanism, nhưng cả hai đều đảm bảo tính chính xác và hỗ trợ đầy đủ các tính năng cần thiết.
 
+
+

@@ -241,3 +241,5 @@ FFDFF06F  // JAL instruction với offset âm
 
 **Kết quả**: Code chạy đúng với mọi giá trị 32-bit, kể cả các instruction có bit 31 = 1.
 
+
+
